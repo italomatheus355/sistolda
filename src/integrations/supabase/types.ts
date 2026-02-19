@@ -14,16 +14,410 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      chaves: {
+        Row: {
+          codigo: string
+          created_at: string
+          departamento: string | null
+          id: string
+          militar_responsavel: string | null
+          nome: string
+          numero: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          codigo: string
+          created_at?: string
+          departamento?: string | null
+          id?: string
+          militar_responsavel?: string | null
+          nome: string
+          numero: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          codigo?: string
+          created_at?: string
+          departamento?: string | null
+          id?: string
+          militar_responsavel?: string | null
+          nome?: string
+          numero?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      escala_cabos: {
+        Row: {
+          blocos: Json
+          cabo_id: number
+          cabo_nome: string
+          created_at: string
+          data: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          blocos?: Json
+          cabo_id: number
+          cabo_nome: string
+          created_at?: string
+          data: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          blocos?: Json
+          cabo_id?: number
+          cabo_nome?: string
+          created_at?: string
+          data?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      historico_chaves: {
+        Row: {
+          cabo_devolucao: string | null
+          cabo_retirada: string | null
+          chave_id: string
+          chave_nome: string
+          created_at: string
+          data_devolucao: string | null
+          data_retirada: string
+          id: string
+          matricula: string | null
+          militar: string
+          status: string
+        }
+        Insert: {
+          cabo_devolucao?: string | null
+          cabo_retirada?: string | null
+          chave_id: string
+          chave_nome: string
+          created_at?: string
+          data_devolucao?: string | null
+          data_retirada?: string
+          id?: string
+          matricula?: string | null
+          militar: string
+          status?: string
+        }
+        Update: {
+          cabo_devolucao?: string | null
+          cabo_retirada?: string | null
+          chave_id?: string
+          chave_nome?: string
+          created_at?: string
+          data_devolucao?: string | null
+          data_retirada?: string
+          id?: string
+          matricula?: string | null
+          militar?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_chaves_chave_id_fkey"
+            columns: ["chave_id"]
+            isOneToOne: false
+            referencedRelation: "chaves"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historico_materiais: {
+        Row: {
+          cabo_retorno: string | null
+          cabo_saida: string | null
+          created_at: string
+          data_retorno: string | null
+          data_saida: string
+          id: string
+          material_id: string
+          material_nome: string
+          matricula: string | null
+          militar: string
+          status: string
+        }
+        Insert: {
+          cabo_retorno?: string | null
+          cabo_saida?: string | null
+          created_at?: string
+          data_retorno?: string | null
+          data_saida?: string
+          id?: string
+          material_id: string
+          material_nome: string
+          matricula?: string | null
+          militar: string
+          status?: string
+        }
+        Update: {
+          cabo_retorno?: string | null
+          cabo_saida?: string | null
+          created_at?: string
+          data_retorno?: string | null
+          data_saida?: string
+          id?: string
+          material_id?: string
+          material_nome?: string
+          matricula?: string | null
+          militar?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_materiais_material_id_fkey"
+            columns: ["material_id"]
+            isOneToOne: false
+            referencedRelation: "materiais"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      historico_viaturas: {
+        Row: {
+          autonomia_informada: string | null
+          cabo_retorno: string | null
+          cabo_saida: string | null
+          created_at: string
+          data_retorno: string | null
+          data_saida: string
+          destino: string
+          id: string
+          km_retorno: number | null
+          km_rodado: number | null
+          km_saida: number | null
+          matricula: string | null
+          motorista: string
+          status: string
+          viatura_id: string
+          viatura_prefixo: string
+        }
+        Insert: {
+          autonomia_informada?: string | null
+          cabo_retorno?: string | null
+          cabo_saida?: string | null
+          created_at?: string
+          data_retorno?: string | null
+          data_saida?: string
+          destino: string
+          id?: string
+          km_retorno?: number | null
+          km_rodado?: number | null
+          km_saida?: number | null
+          matricula?: string | null
+          motorista: string
+          status?: string
+          viatura_id: string
+          viatura_prefixo: string
+        }
+        Update: {
+          autonomia_informada?: string | null
+          cabo_retorno?: string | null
+          cabo_saida?: string | null
+          created_at?: string
+          data_retorno?: string | null
+          data_saida?: string
+          destino?: string
+          id?: string
+          km_retorno?: number | null
+          km_rodado?: number | null
+          km_saida?: number | null
+          matricula?: string | null
+          motorista?: string
+          status?: string
+          viatura_id?: string
+          viatura_prefixo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_viaturas_viatura_id_fkey"
+            columns: ["viatura_id"]
+            isOneToOne: false
+            referencedRelation: "viaturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      materiais: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          militar_responsavel: string | null
+          nome: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          militar_responsavel?: string | null
+          nome: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          militar_responsavel?: string | null
+          nome?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          matricula: string | null
+          nome: string
+          posto_grad: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          matricula?: string | null
+          nome: string
+          posto_grad?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          matricula?: string | null
+          nome?: string
+          posto_grad?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      viaturas: {
+        Row: {
+          created_at: string
+          id: string
+          km_atual: number | null
+          militar_responsavel: string | null
+          modelo: string
+          numero: number
+          placa: string | null
+          prefixo: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          km_atual?: number | null
+          militar_responsavel?: string | null
+          modelo: string
+          numero: number
+          placa?: string | null
+          prefixo: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          km_atual?: number | null
+          militar_responsavel?: string | null
+          modelo?: string
+          numero?: number
+          placa?: string | null
+          prefixo?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      visitantes: {
+        Row: {
+          cabo_registro: string | null
+          created_at: string
+          documento: string
+          hora_entrada: string
+          hora_saida: string | null
+          id: string
+          local_destino: string
+          militar_responsavel: string
+          nome: string
+          observacoes: string | null
+        }
+        Insert: {
+          cabo_registro?: string | null
+          created_at?: string
+          documento: string
+          hora_entrada?: string
+          hora_saida?: string | null
+          id?: string
+          local_destino: string
+          militar_responsavel: string
+          nome: string
+          observacoes?: string | null
+        }
+        Update: {
+          cabo_registro?: string | null
+          created_at?: string
+          documento?: string
+          hora_entrada?: string
+          hora_saida?: string | null
+          id?: string
+          local_destino?: string
+          militar_responsavel?: string
+          nome?: string
+          observacoes?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_cabo_on_duty: { Args: never; Returns: string }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_administrador: { Args: never; Returns: boolean }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "administrador" | "cabo_auxiliar"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +544,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["administrador", "cabo_auxiliar"],
+    },
   },
 } as const
