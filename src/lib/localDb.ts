@@ -1,0 +1,276 @@
+// Local data layer — substitui completamente o Supabase usando localStorage.
+// Toda persistência fica no navegador. Dados simulados / seed inicial.
+
+const STORAGE_PREFIX = "claviculario:";
+
+function load<T>(key: string, fallback: T): T {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + key);
+    if (!raw) return fallback;
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function save<T>(key: string, value: T) {
+  localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
+  // dispatch local event para invalidar queries
+  window.dispatchEvent(new CustomEvent("localdb:change", { detail: { key } }));
+}
+
+export function uid(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+// ============ Tipos ============
+export interface Chave {
+  id: string;
+  numero: number;
+  nome: string;
+  departamento: string | null;
+  codigo: string;
+  status: "disponivel" | "emprestada";
+  militar_responsavel: string | null;
+}
+
+export interface HistoricoChave {
+  id: string;
+  chave_id: string;
+  chave_nome: string;
+  militar: string;
+  matricula: string | null;
+  data_retirada: string;
+  data_devolucao: string | null;
+  cabo_retirada: string | null;
+  cabo_devolucao: string | null;
+  status: "em_uso" | "devolvida";
+}
+
+export interface Viatura {
+  id: string;
+  numero: number;
+  prefixo: string;
+  modelo: string;
+  placa: string | null;
+  status: "disponivel" | "em_uso" | "manutencao";
+  militar_responsavel: string | null;
+  km_atual: number | null;
+}
+
+export interface HistoricoViatura {
+  id: string;
+  viatura_id: string;
+  viatura_prefixo: string;
+  motorista: string;
+  matricula: string | null;
+  destino: string;
+  km_saida: number | null;
+  km_retorno: number | null;
+  km_rodado: number | null;
+  data_saida: string;
+  data_retorno: string | null;
+  cabo_saida: string | null;
+  cabo_retorno: string | null;
+  autonomia_informada: string | null;
+  status: "em_uso" | "retornada";
+}
+
+export interface Visitante {
+  id: string;
+  nome: string;
+  documento: string;
+  militar_responsavel: string;
+  local_destino: string;
+  hora_entrada: string;
+  hora_saida: string | null;
+  observacoes: string | null;
+  cabo_registro: string | null;
+}
+
+export interface Material {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  status: "disponivel" | "emprestado";
+  militar_responsavel: string | null;
+}
+
+export interface HistoricoMaterial {
+  id: string;
+  material_id: string;
+  material_nome: string;
+  militar: string;
+  matricula: string | null;
+  data_saida: string;
+  data_retorno: string | null;
+  cabo_saida: string | null;
+  cabo_retorno: string | null;
+  status: "em_uso" | "devolvido";
+}
+
+export interface BlocoHorario { inicio: string; fim: string }
+
+export interface EscalaCabo {
+  id: string;
+  data: string;        // YYYY-MM-DD
+  cabo_id: number;     // 1 ou 2
+  cabo_nome: string;
+  blocos: BlocoHorario[];
+}
+
+export interface UserAccount {
+  id: string;
+  email: string;
+  password: string;
+  nome: string;
+  posto_grad: string | null;
+  matricula: string | null;
+  role: "administrador" | "cabo_auxiliar";
+  created_at: string;
+}
+
+// ============ Seed ============
+const NOMES_CHAVES_48 = [
+  "Imediato","Sala do Comandante","Secretaria","Sala P1","Sala P2","Sala P3","Sala P4",
+  "Sala de Reuniões","Tesouraria","Almoxarifado","Material Bélico","Sala Rádio","Sala CFTV",
+  "Sala TI","Arquivo Geral","Arquivo Confidencial","Refeitório","Cozinha","Despensa",
+  "Sala de Aula 1","Sala de Aula 2","Auditório","Biblioteca","Enfermaria","Farmácia",
+  "Garagem","Oficina","Lavagem","Posto Combustível","Vestiário Masculino","Vestiário Feminino",
+  "Banheiro Tropa","Alojamento Praças","Alojamento Sargentos","Alojamento Oficiais",
+  "Cassino","Sala de Estar","Lavanderia","Sala Geradores","Casa de Bombas","Subestação",
+  "Portaria Principal","Portaria Auxiliar","Guarita 1","Guarita 2","Paiol Munição",
+  "Paiol Armamento","Paiol Refrigeração",
+];
+
+function seedChaves(): Chave[] {
+  return NOMES_CHAVES_48.map((nome, i) => ({
+    id: `chave-${i + 1}`,
+    numero: i + 1,
+    nome,
+    departamento: null,
+    codigo: `CH-${String(i + 1).padStart(3, "0")}`,
+    status: "disponivel" as const,
+    militar_responsavel: null,
+  }));
+}
+
+function seedViaturas(): Viatura[] {
+  return [
+    { id: "vtr-1", numero: 1, prefixo: "VTR-001", modelo: "Ford Ka", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 45000 },
+    { id: "vtr-2", numero: 2, prefixo: "VTR-002", modelo: "Mitsubishi L200", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 78000 },
+  ];
+}
+
+function seedMateriais(): Material[] {
+  return [
+    { id: "mat-1", nome: "Rádio HT", descricao: "Comunicador portátil", status: "disponivel", militar_responsavel: null },
+    { id: "mat-2", nome: "Lanterna Tática", descricao: null, status: "disponivel", militar_responsavel: null },
+    { id: "mat-3", nome: "Binóculo", descricao: null, status: "disponivel", militar_responsavel: null },
+  ];
+}
+
+function seedUsers(): UserAccount[] {
+  const now = new Date().toISOString();
+  return [
+    { id: "user-admin", email: "admin@portaria.mil", password: "Admin@2026", nome: "Administrador", posto_grad: "Sgt", matricula: "00001", role: "administrador", created_at: now },
+    { id: "user-cabo", email: "cabo@portaria.mil", password: "Cabo@2026", nome: "Cabo de Plantão", posto_grad: "Cb", matricula: "00002", role: "cabo_auxiliar", created_at: now },
+  ];
+}
+
+function seedEscala(): EscalaCabo[] {
+  const today = new Date().toISOString().split("T")[0];
+  return [
+    { id: "esc-1", data: today, cabo_id: 1, cabo_nome: "Cb Pereira", blocos: [{ inicio: "08:00", fim: "20:00" }] },
+    { id: "esc-2", data: today, cabo_id: 2, cabo_nome: "Cb Rodrigues", blocos: [{ inicio: "20:00", fim: "08:00" }] },
+  ];
+}
+
+// ============ API genérica de tabelas ============
+type TableName =
+  | "chaves" | "historico_chaves"
+  | "viaturas" | "historico_viaturas"
+  | "visitantes"
+  | "materiais" | "historico_materiais"
+  | "escala_cabos"
+  | "users";
+
+const seeders: Record<TableName, () => any[]> = {
+  chaves: seedChaves,
+  historico_chaves: () => [],
+  viaturas: seedViaturas,
+  historico_viaturas: () => [],
+  visitantes: () => [],
+  materiais: seedMateriais,
+  historico_materiais: () => [],
+  escala_cabos: seedEscala,
+  users: seedUsers,
+};
+
+function getAll<T>(table: TableName): T[] {
+  const existing = localStorage.getItem(STORAGE_PREFIX + table);
+  if (existing === null) {
+    const seeded = seeders[table]();
+    save(table, seeded);
+    return seeded as T[];
+  }
+  return load<T[]>(table, []);
+}
+
+function setAll<T>(table: TableName, rows: T[]) {
+  save(table, rows);
+}
+
+export const localDb = {
+  list<T>(table: TableName): T[] {
+    return getAll<T>(table);
+  },
+  insert<T extends { id?: string }>(table: TableName, row: Omit<T, "id"> & { id?: string }): T {
+    const rows = getAll<T>(table);
+    const newRow = { ...(row as any), id: row.id || uid() } as T;
+    rows.push(newRow);
+    setAll(table, rows);
+    return newRow;
+  },
+  update<T extends { id: string }>(table: TableName, id: string, patch: Partial<T>): T | null {
+    const rows = getAll<T>(table);
+    const idx = rows.findIndex((r) => r.id === id);
+    if (idx < 0) return null;
+    rows[idx] = { ...rows[idx], ...patch };
+    setAll(table, rows);
+    return rows[idx];
+  },
+  remove(table: TableName, id: string) {
+    const rows = getAll<{ id: string }>(table);
+    setAll(table, rows.filter((r) => r.id !== id));
+  },
+  resetAll() {
+    Object.keys(seeders).forEach((t) => localStorage.removeItem(STORAGE_PREFIX + t));
+  },
+};
+
+// ============ Cabo on duty (lógica do RPC) ============
+export function getCaboOnDuty(): string {
+  const today = new Date().toISOString().split("T")[0];
+  const escalas = localDb.list<EscalaCabo>("escala_cabos").filter((e) => e.data === today);
+  const currH = new Date().getHours();
+  for (const e of escalas) {
+    for (const b of e.blocos) {
+      const sH = parseInt(b.inicio.split(":")[0]);
+      const eH = parseInt(b.fim.split(":")[0]);
+      const inBlock = sH < eH ? currH >= sH && currH < eH : currH >= sH || currH < eH;
+      if (inBlock) return e.cabo_nome || "Não identificado";
+    }
+  }
+  return "Não identificado";
+}
+
+// ============ Subscribe (para invalidação reativa) ============
+export function subscribeChanges(cb: (key: string) => void): () => void {
+  const handler = (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    if (detail?.key) cb(detail.key);
+  };
+  window.addEventListener("localdb:change", handler);
+  return () => window.removeEventListener("localdb:change", handler);
+}
