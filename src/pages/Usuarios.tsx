@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Users, Plus, Shield, User } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { localDb, UserAccount, uid } from "@/lib/localDb";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,44 +12,37 @@ import { useAuth } from "@/hooks/useAuth";
 import { Navigate } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface Profile {
-  id: string;
-  nome: string;
-  posto_grad: string | null;
-  matricula: string | null;
-  role: string;
-  created_at: string;
-}
-
 const Usuarios = () => {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ email: "", password: "", nome: "", posto_grad: "", matricula: "", role: "cabo_auxiliar" });
+  const [form, setForm] = useState({ email: "", password: "", nome: "", posto_grad: "", matricula: "", role: "cabo_auxiliar" as "cabo_auxiliar" | "administrador" });
 
   if (!isAdmin) return <Navigate to="/chaves" replace />;
 
   const { data: profiles = [], isLoading } = useQuery({
-    queryKey: ["profiles"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("profiles").select("*").order("nome");
-      if (error) throw error;
-      return data as Profile[];
-    },
+    queryKey: ["users"],
+    queryFn: async () => localDb.list<UserAccount>("users").sort((a, b) => a.nome.localeCompare(b.nome)),
   });
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      const response = await supabase.functions.invoke("criar-usuario", {
-        body: form,
-        headers: { Authorization: `Bearer ${session?.access_token}` },
+      const exists = localDb.list<UserAccount>("users").some((u) => u.email.toLowerCase() === form.email.toLowerCase());
+      if (exists) throw new Error("E-mail já cadastrado.");
+      if (form.password.length < 6) throw new Error("Senha deve ter no mínimo 6 caracteres.");
+      localDb.insert<UserAccount>("users", {
+        id: uid(),
+        email: form.email,
+        password: form.password,
+        nome: form.nome,
+        posto_grad: form.posto_grad || null,
+        matricula: form.matricula || null,
+        role: form.role,
+        created_at: new Date().toISOString(),
       });
-      if (response.error) throw response.error;
-      if (response.data?.error) throw new Error(response.data.error);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       toast({ title: "Usuário Criado", description: `${form.nome} cadastrado com sucesso.` });
       setForm({ email: "", password: "", nome: "", posto_grad: "", matricula: "", role: "cabo_auxiliar" });
       setShowForm(false);
@@ -79,18 +72,20 @@ const Usuarios = () => {
               <TableHead className="text-xs font-mono">NOME</TableHead>
               <TableHead className="text-xs font-mono">POSTO/GRAD</TableHead>
               <TableHead className="text-xs font-mono">MATRÍCULA</TableHead>
+              <TableHead className="text-xs font-mono">E-MAIL</TableHead>
               <TableHead className="text-xs font-mono">PERFIL</TableHead>
               <TableHead className="text-xs font-mono">CADASTRADO</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
-              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Carregando...</TableCell></TableRow>
             ) : profiles.map((p) => (
               <TableRow key={p.id} className="hover:bg-secondary/30">
                 <TableCell className="text-sm font-medium">{p.nome}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{p.posto_grad || "—"}</TableCell>
                 <TableCell className="text-xs font-mono">{p.matricula || "—"}</TableCell>
+                <TableCell className="text-xs font-mono text-muted-foreground">{p.email}</TableCell>
                 <TableCell>
                   <Badge className={p.role === "administrador" ? "bg-primary/20 text-primary border-0" : "bg-secondary text-muted-foreground border-0"}>
                     {p.role === "administrador" ? <><Shield className="w-3 h-3 mr-1" />Admin</> : <><User className="w-3 h-3 mr-1" />Cabo Aux.</>}
@@ -135,10 +130,8 @@ const Usuarios = () => {
             </div>
             <div>
               <label className="text-xs font-mono text-muted-foreground mb-1.5 block">PERFIL</label>
-              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v })}>
-                <SelectTrigger className="bg-secondary border-border">
-                  <SelectValue />
-                </SelectTrigger>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as "cabo_auxiliar" | "administrador" })}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cabo_auxiliar">Cabo Auxiliar</SelectItem>
                   <SelectItem value="administrador">Administrador</SelectItem>
