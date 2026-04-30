@@ -81,9 +81,10 @@ export function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-4 font-mono">
-          Acesso restrito — contate o administrador
-        </p>
+        <div className="text-center text-[10px] text-muted-foreground mt-4 font-mono space-y-1">
+          <p>Acesso restrito — contate o administrador</p>
+          <p className="opacity-60">Demo: admin@portaria.mil / Admin@2026</p>
+        </div>
       </div>
     </div>
   );

@@ -1,1 +1,2 @@
-export { supabase } from "@/integrations/supabase/client";
+// Camada de dados local — sem backend remoto.
+export { localDb, getCaboOnDuty } from "@/lib/localDb";

@@ -1,87 +1,52 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Calendar, Plus, Trash2, Clock, Save } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { localDb, EscalaCabo, BlocoHorario, uid } from "@/lib/localDb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 
-interface EscalaCabo {
-  id: string;
-  data: string;
-  cabo_id: number;
-  cabo_nome: string;
-  blocos: unknown;
-}
-
-type BlocoHorario = { inicio: string; fim: string };
-const parseBlocos = (blocos: unknown): BlocoHorario[] => {
-  if (!Array.isArray(blocos)) return [{ inicio: "08:00", fim: "20:00" }];
-  return blocos as BlocoHorario[];
-};
-
 const today = new Date().toISOString().split("T")[0];
+
+interface CaboForm { cabo_id: number; cabo_nome: string; blocos: BlocoHorario[] }
 
 const Escala = () => {
   const { isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState(today);
 
-  const { data: escalas = [], isLoading } = useQuery({
+  const { data: escalas = [] } = useQuery({
     queryKey: ["escala_cabos", selectedDate],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("escala_cabos")
-        .select("*")
-        .eq("data", selectedDate)
-        .order("cabo_id");
-      if (error) throw error;
-      return data as EscalaCabo[];
-    },
+    queryFn: async () =>
+      localDb.list<EscalaCabo>("escala_cabos").filter((e) => e.data === selectedDate).sort((a, b) => a.cabo_id - b.cabo_id),
   });
 
-  // Local state for editing
-  const [cabos, setCabos] = useState<{ cabo_id: number; cabo_nome: string; blocos: { inicio: string; fim: string }[] }[]>([]);
+  const [cabos, setCabos] = useState<CaboForm[]>([]);
 
-  // Sync escalas to cabos when data changes
-  const initCabos = () => {
-    const initialized = [1, 2].map((cabo_id) => {
+  useEffect(() => {
+    const init = [1, 2].map((cabo_id) => {
       const existing = escalas.find((e) => e.cabo_id === cabo_id);
       return {
         cabo_id,
         cabo_nome: existing?.cabo_nome || "",
-        blocos: parseBlocos(existing?.blocos),
+        blocos: existing?.blocos?.length ? existing.blocos : [{ inicio: "08:00", fim: "20:00" }],
       };
     });
-    setCabos(initialized);
-  };
-
-  // Initialize when escalas load
-  useState(() => { initCabos(); });
+    setCabos(init);
+  }, [selectedDate, escalas.length]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       for (const cabo of cabos) {
         if (!cabo.cabo_nome.trim()) continue;
-        const { data: existing } = await supabase
-          .from("escala_cabos")
-          .select("id")
-          .eq("data", selectedDate)
-          .eq("cabo_id", cabo.cabo_id)
-          .single();
-
+        const existing = localDb.list<EscalaCabo>("escala_cabos")
+          .find((e) => e.data === selectedDate && e.cabo_id === cabo.cabo_id);
         if (existing) {
-          await supabase.from("escala_cabos").update({
-            cabo_nome: cabo.cabo_nome,
-            blocos: cabo.blocos as any,
-          }).eq("id", existing.id);
+          localDb.update<EscalaCabo>("escala_cabos", existing.id, { cabo_nome: cabo.cabo_nome, blocos: cabo.blocos });
         } else {
-          await supabase.from("escala_cabos").insert({
-            data: selectedDate,
-            cabo_id: cabo.cabo_id,
-            cabo_nome: cabo.cabo_nome,
-            blocos: cabo.blocos as any,
+          localDb.insert<EscalaCabo>("escala_cabos", {
+            id: uid(), data: selectedDate, cabo_id: cabo.cabo_id, cabo_nome: cabo.cabo_nome, blocos: cabo.blocos,
           });
         }
       }
@@ -90,66 +55,43 @@ const Escala = () => {
       queryClient.invalidateQueries({ queryKey: ["escala_cabos"] });
       toast({ title: "Escala Salva", description: `Escala de ${new Date(selectedDate + "T12:00:00").toLocaleDateString("pt-BR")} atualizada.` });
     },
-    onError: () => toast({ title: "Erro", description: "Não foi possível salvar.", variant: "destructive" }),
   });
 
-  const updateCaboNome = (idx: number, nome: string) => {
-    setCabos(prev => prev.map((c, i) => i === idx ? { ...c, cabo_nome: nome } : c));
-  };
+  const updateCaboNome = (idx: number, nome: string) =>
+    setCabos((prev) => prev.map((c, i) => (i === idx ? { ...c, cabo_nome: nome } : c)));
 
-  const updateBloco = (caboIdx: number, blocoIdx: number, field: "inicio" | "fim", value: string) => {
-    setCabos(prev => prev.map((c, i) =>
-      i === caboIdx ? { ...c, blocos: c.blocos.map((b, bi) => bi === blocoIdx ? { ...b, [field]: value } : b) } : c
+  const updateBloco = (caboIdx: number, blocoIdx: number, field: "inicio" | "fim", value: string) =>
+    setCabos((prev) => prev.map((c, i) =>
+      i === caboIdx ? { ...c, blocos: c.blocos.map((b, bi) => (bi === blocoIdx ? { ...b, [field]: value } : b)) } : c
     ));
-  };
 
-  const addBloco = (caboIdx: number) => {
-    setCabos(prev => prev.map((c, i) =>
-      i === caboIdx ? { ...c, blocos: [...c.blocos, { inicio: "08:00", fim: "10:00" }] } : c
-    ));
-  };
+  const addBloco = (caboIdx: number) =>
+    setCabos((prev) => prev.map((c, i) => (i === caboIdx ? { ...c, blocos: [...c.blocos, { inicio: "08:00", fim: "10:00" }] } : c)));
 
-  const removeBloco = (caboIdx: number, blocoIdx: number) => {
-    setCabos(prev => prev.map((c, i) =>
-      i === caboIdx ? { ...c, blocos: c.blocos.filter((_, bi) => bi !== blocoIdx) } : c
-    ));
-  };
+  const removeBloco = (caboIdx: number, blocoIdx: number) =>
+    setCabos((prev) => prev.map((c, i) => (i === caboIdx ? { ...c, blocos: c.blocos.filter((_, bi) => bi !== blocoIdx) } : c)));
 
-  const getHourBlocks = (blocos: { inicio: string; fim: string }[]) => {
+  const getHourBlocks = (blocos: BlocoHorario[]) => {
     const active = new Set<number>();
     blocos.forEach((b) => {
       const start = parseInt(b.inicio.split(":")[0]);
       const end = parseInt(b.fim.split(":")[0]);
-      if (start < end) {
-        for (let h = start; h < end; h++) active.add(h);
-      } else {
-        for (let h = start; h < 24; h++) active.add(h);
-        for (let h = 0; h < end; h++) active.add(h);
-      }
+      if (start < end) for (let h = start; h < end; h++) active.add(h);
+      else { for (let h = start; h < 24; h++) active.add(h); for (let h = 0; h < end; h++) active.add(h); }
     });
     return active;
   };
 
-  // Determine current on-duty from local state
   const getCurrentOnDuty = () => {
     if (selectedDate !== today) return null;
     const curr = new Date().getHours();
     for (const cabo of cabos) {
-      const active = getHourBlocks(cabo.blocos);
-      if (active.has(curr)) return cabo.cabo_nome || `Cabo ${cabo.cabo_id}`;
+      if (getHourBlocks(cabo.blocos).has(curr)) return cabo.cabo_nome || `Cabo ${cabo.cabo_id}`;
     }
     return "Não definido";
   };
 
   const currentOnDuty = getCurrentOnDuty();
-
-  // Initialize cabos from escalas when query returns
-  if (escalas.length > 0 && cabos.length === 0) {
-    initCabos();
-  }
-  if (cabos.length === 0) {
-    initCabos();
-  }
 
   return (
     <div>
@@ -165,7 +107,7 @@ const Escala = () => {
           <Input
             type="date"
             value={selectedDate}
-            onChange={(e) => { setSelectedDate(e.target.value); setCabos([]); }}
+            onChange={(e) => setSelectedDate(e.target.value)}
             className="bg-secondary border-border w-44"
           />
           {isAdmin && (
@@ -177,7 +119,6 @@ const Escala = () => {
         </div>
       </div>
 
-      {/* Em serviço agora */}
       {selectedDate === today && currentOnDuty && (
         <div className="mb-6 p-4 rounded-lg border border-primary/30 bg-primary/5">
           <p className="text-xs font-mono text-primary mb-1">EM SERVIÇO AGORA</p>
@@ -186,7 +127,6 @@ const Escala = () => {
         </div>
       )}
 
-      {/* Timeline visualization */}
       <div className="rounded-lg border border-border p-4 mb-6 bg-card">
         <h3 className="text-xs font-mono text-muted-foreground mb-3 flex items-center gap-1.5">
           <Clock className="w-3.5 h-3.5" /> VISUALIZAÇÃO 24H
@@ -220,7 +160,6 @@ const Escala = () => {
         </div>
       </div>
 
-      {/* Cabo forms */}
       <div className="grid md:grid-cols-2 gap-4">
         {cabos.map((cabo, idx) => (
           <div key={cabo.cabo_id} className="rounded-lg border border-border p-4 bg-card">
@@ -239,21 +178,9 @@ const Escala = () => {
               <label className="text-xs font-mono text-muted-foreground">BLOCOS DE HORÁRIO</label>
               {cabo.blocos.map((bloco, bi) => (
                 <div key={bi} className="flex items-center gap-2">
-                  <Input
-                    type="time"
-                    value={bloco.inicio}
-                    onChange={(e) => updateBloco(idx, bi, "inicio", e.target.value)}
-                    className="bg-secondary border-border flex-1"
-                    disabled={!isAdmin}
-                  />
+                  <Input type="time" value={bloco.inicio} onChange={(e) => updateBloco(idx, bi, "inicio", e.target.value)} className="bg-secondary border-border flex-1" disabled={!isAdmin} />
                   <span className="text-xs text-muted-foreground">até</span>
-                  <Input
-                    type="time"
-                    value={bloco.fim}
-                    onChange={(e) => updateBloco(idx, bi, "fim", e.target.value)}
-                    className="bg-secondary border-border flex-1"
-                    disabled={!isAdmin}
-                  />
+                  <Input type="time" value={bloco.fim} onChange={(e) => updateBloco(idx, bi, "fim", e.target.value)} className="bg-secondary border-border flex-1" disabled={!isAdmin} />
                   {isAdmin && (
                     <Button size="icon" variant="ghost" onClick={() => removeBloco(idx, bi)} className="h-8 w-8 text-muted-foreground hover:text-destructive">
                       <Trash2 className="w-3.5 h-3.5" />

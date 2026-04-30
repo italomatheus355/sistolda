@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Package, Search, Plus, Fingerprint, RotateCcw, History } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { localDb, getCaboOnDuty, Material, HistoricoMaterial, uid } from "@/lib/localDb";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,30 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-
-interface Material {
-  id: string;
-  nome: string;
-  descricao: string | null;
-  status: string;
-  militar_responsavel: string | null;
-}
-
-interface HistoricoMaterial {
-  id: string;
-  material_nome: string;
-  militar: string;
-  data_saida: string;
-  data_retorno: string | null;
-  cabo_saida: string | null;
-  cabo_retorno: string | null;
-  status: string;
-}
-
-const getCaboOnDuty = async (): Promise<string> => {
-  const { data } = await supabase.rpc("get_cabo_on_duty" as any);
-  return (data as string) || "Não identificado";
-};
 
 const MaterialPage = () => {
   const queryClient = useQueryClient();
@@ -47,33 +23,26 @@ const MaterialPage = () => {
 
   const { data: materiais = [], isLoading } = useQuery({
     queryKey: ["materiais"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("materiais").select("*").order("nome");
-      if (error) throw error;
-      return data as Material[];
-    },
+    queryFn: async () => localDb.list<Material>("materiais").sort((a, b) => a.nome.localeCompare(b.nome)),
   });
 
   const { data: historico = [] } = useQuery({
     queryKey: ["historico_materiais"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("historico_materiais")
-        .select("*")
-        .order("data_saida", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return data as HistoricoMaterial[];
-    },
+    queryFn: async () =>
+      localDb.list<HistoricoMaterial>("historico_materiais")
+        .sort((a, b) => b.data_saida.localeCompare(a.data_saida))
+        .slice(0, 50),
   });
 
   const cadastroMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("materiais").insert({
+      localDb.insert<Material>("materiais", {
+        id: uid(),
         nome: novoMaterial.nome,
         descricao: novoMaterial.descricao || null,
+        status: "disponivel",
+        militar_responsavel: null,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["materiais"] });
@@ -81,22 +50,24 @@ const MaterialPage = () => {
       setNovoMaterial({ nome: "", descricao: "" });
       setDialogType(null);
     },
-    onError: () => toast({ title: "Erro", description: "Não foi possível cadastrar.", variant: "destructive" }),
   });
 
   const retiradaMutation = useMutation({
     mutationFn: async ({ material, cabo }: { material: Material; cabo: string }) => {
-      await supabase.from("materiais").update({
+      localDb.update<Material>("materiais", material.id, {
         status: "emprestado",
         militar_responsavel: `${nomeMilitar} (Mat. ${matricula})`,
-      }).eq("id", material.id);
-
-      await supabase.from("historico_materiais").insert({
+      });
+      localDb.insert<HistoricoMaterial>("historico_materiais", {
+        id: uid(),
         material_id: material.id,
         material_nome: material.nome,
         militar: `${nomeMilitar} (Mat. ${matricula})`,
         matricula,
+        data_saida: new Date().toISOString(),
+        data_retorno: null,
         cabo_saida: cabo,
+        cabo_retorno: null,
         status: "em_uso",
       });
     },
@@ -104,34 +75,22 @@ const MaterialPage = () => {
       queryClient.invalidateQueries({ queryKey: ["materiais"] });
       queryClient.invalidateQueries({ queryKey: ["historico_materiais"] });
       toast({ title: "Saída Registrada", description: `${selected?.nome} retirado.` });
-      setDialogType(null);
-      setNomeMilitar(""); setMatricula("");
+      setDialogType(null); setNomeMilitar(""); setMatricula("");
     },
-    onError: () => toast({ title: "Erro", description: "Não foi possível registrar.", variant: "destructive" }),
   });
 
   const devolucaoMutation = useMutation({
     mutationFn: async ({ material, cabo }: { material: Material; cabo: string }) => {
-      await supabase.from("materiais").update({
-        status: "disponivel",
-        militar_responsavel: null,
-      }).eq("id", material.id);
-
-      const { data: hist } = await supabase
-        .from("historico_materiais")
-        .select("id")
-        .eq("material_id", material.id)
-        .eq("status", "em_uso")
-        .order("data_saida", { ascending: false })
-        .limit(1)
-        .single();
-
+      localDb.update<Material>("materiais", material.id, { status: "disponivel", militar_responsavel: null });
+      const hist = localDb.list<HistoricoMaterial>("historico_materiais")
+        .filter((h) => h.material_id === material.id && h.status === "em_uso")
+        .sort((a, b) => b.data_saida.localeCompare(a.data_saida))[0];
       if (hist) {
-        await supabase.from("historico_materiais").update({
+        localDb.update<HistoricoMaterial>("historico_materiais", hist.id, {
           data_retorno: new Date().toISOString(),
           cabo_retorno: cabo,
           status: "devolvido",
-        }).eq("id", hist.id);
+        });
       }
     },
     onSuccess: () => {
@@ -140,7 +99,6 @@ const MaterialPage = () => {
       toast({ title: "Devolução Registrada", description: `${selected?.nome} devolvido.` });
       setDialogType(null);
     },
-    onError: () => toast({ title: "Erro", description: "Não foi possível registrar.", variant: "destructive" }),
   });
 
   const handleClick = (m: Material) => {
@@ -149,21 +107,19 @@ const MaterialPage = () => {
     setNomeMilitar(""); setMatricula("");
   };
 
-  const handleRetirada = async () => {
+  const handleRetirada = () => {
     if (!nomeMilitar.trim() || !matricula.trim()) {
       toast({ title: "Erro", description: "Informe nome e matrícula.", variant: "destructive" });
       return;
     }
-    const cabo = await getCaboOnDuty();
-    retiradaMutation.mutate({ material: selected!, cabo });
+    retiradaMutation.mutate({ material: selected!, cabo: getCaboOnDuty() });
   };
 
-  const handleDevolucao = async () => {
-    const cabo = await getCaboOnDuty();
-    devolucaoMutation.mutate({ material: selected!, cabo });
+  const handleDevolucao = () => {
+    devolucaoMutation.mutate({ material: selected!, cabo: getCaboOnDuty() });
   };
 
-  const filtered = materiais.filter(m =>
+  const filtered = materiais.filter((m) =>
     m.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (m.descricao || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -180,8 +136,8 @@ const MaterialPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-            <span className="flex items-center gap-1.5"><span className="status-dot-available" /> {materiais.filter(m => m.status === "disponivel").length}</span>
-            <span className="flex items-center gap-1.5"><span className="status-dot-borrowed" /> {materiais.filter(m => m.status === "emprestado").length}</span>
+            <span className="flex items-center gap-1.5"><span className="status-dot-available" /> {materiais.filter((m) => m.status === "disponivel").length}</span>
+            <span className="flex items-center gap-1.5"><span className="status-dot-borrowed" /> {materiais.filter((m) => m.status === "emprestado").length}</span>
           </div>
           {isAdmin && (
             <Button onClick={() => setDialogType("cadastro")} size="sm" className="gap-2">
@@ -274,7 +230,6 @@ const MaterialPage = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Cadastro (admin only) */}
       <Dialog open={dialogType === "cadastro"} onOpenChange={() => setDialogType(null)}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
@@ -296,7 +251,6 @@ const MaterialPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Retirada */}
       <Dialog open={dialogType === "retirada"} onOpenChange={() => setDialogType(null)}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
@@ -320,7 +274,6 @@ const MaterialPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Devolução */}
       <Dialog open={dialogType === "devolucao"} onOpenChange={() => setDialogType(null)}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
@@ -330,7 +283,7 @@ const MaterialPage = () => {
           <div className="space-y-4 mt-2">
             <div className="p-3 rounded-md bg-secondary/50 border border-border">
               <p className="text-xs text-muted-foreground font-mono">CABO AUXILIAR EM SERVIÇO</p>
-              <p className="text-sm font-semibold text-foreground mt-1">Identificado automaticamente pela escala</p>
+              <p className="text-sm font-semibold text-foreground mt-1">{getCaboOnDuty()}</p>
             </div>
             <Button onClick={handleDevolucao} className="w-full" disabled={devolucaoMutation.isPending}>
               {devolucaoMutation.isPending ? "Registrando..." : "Confirmar Devolução"}

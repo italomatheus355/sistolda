@@ -1,11 +1,18 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { localDb, UserAccount } from "@/lib/localDb";
+
+interface SessionUser {
+  id: string;
+  email: string;
+  nome: string;
+  posto_grad: string | null;
+  matricula: string | null;
+  role: "administrador" | "cabo_auxiliar";
+}
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  profile: { nome: string; posto_grad: string | null; role: string } | null;
+  user: SessionUser | null;
+  profile: SessionUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -14,7 +21,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  session: null,
   profile: null,
   loading: true,
   signIn: async () => ({ error: null }),
@@ -22,58 +28,46 @@ const AuthContext = createContext<AuthContextType>({
   isAdmin: false,
 });
 
+const SESSION_KEY = "claviculario:session";
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<{ nome: string; posto_grad: string | null; role: string } | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from("profiles")
-      .select("nome, posto_grad, role")
-      .eq("id", userId)
-      .single();
-    if (data) setProfile(data);
-  };
-
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        if (session?.user) {
-          await fetchProfile(session.user.id);
-        } else {
-          setProfile(null);
-        }
-        setLoading(false);
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) fetchProfile(session.user.id);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Garante que a tabela de users seja semeada
+    localDb.list<UserAccount>("users");
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (raw) setUser(JSON.parse(raw));
+    } catch {}
+    setLoading(false);
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error };
+    const users = localDb.list<UserAccount>("users");
+    const found = users.find(
+      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+    );
+    if (!found) return { error: new Error("Credenciais inválidas") };
+    const sess: SessionUser = {
+      id: found.id, email: found.email, nome: found.nome,
+      posto_grad: found.posto_grad, matricula: found.matricula, role: found.role,
+    };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
+    setUser(sess);
+    return { error: null };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    localStorage.removeItem(SESSION_KEY);
+    setUser(null);
   };
 
-  const isAdmin = profile?.role === "administrador";
+  const isAdmin = user?.role === "administrador";
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signOut, isAdmin }}>
+    <AuthContext.Provider value={{ user, profile: user, loading, signIn, signOut, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

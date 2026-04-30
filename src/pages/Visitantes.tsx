@@ -1,30 +1,13 @@
 import { useState } from "react";
 import { Users, Plus, LogOut } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { localDb, getCaboOnDuty, Visitante, uid } from "@/lib/localDb";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-
-interface Visitante {
-  id: string;
-  nome: string;
-  documento: string;
-  militar_responsavel: string;
-  local_destino: string;
-  hora_entrada: string;
-  hora_saida: string | null;
-  observacoes: string | null;
-  cabo_registro: string | null;
-}
-
-const getCaboOnDuty = async (): Promise<string> => {
-  const { data } = await supabase.rpc("get_cabo_on_duty" as any);
-  return (data as string) || "Não identificado";
-};
 
 const Visitantes = () => {
   const queryClient = useQueryClient();
@@ -33,27 +16,23 @@ const Visitantes = () => {
 
   const { data: visitantes = [], isLoading } = useQuery({
     queryKey: ["visitantes"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("visitantes")
-        .select("*")
-        .order("hora_entrada", { ascending: false });
-      if (error) throw error;
-      return data as Visitante[];
-    },
+    queryFn: async () =>
+      localDb.list<Visitante>("visitantes").sort((a, b) => b.hora_entrada.localeCompare(a.hora_entrada)),
   });
 
   const cadastroMutation = useMutation({
     mutationFn: async (cabo: string) => {
-      const { error } = await supabase.from("visitantes").insert({
+      localDb.insert<Visitante>("visitantes", {
+        id: uid(),
         nome: form.nome,
         documento: form.documento,
         militar_responsavel: form.militarResponsavel,
         local_destino: form.localDestino,
+        hora_entrada: new Date().toISOString(),
+        hora_saida: null,
         observacoes: form.observacoes || null,
         cabo_registro: cabo,
       });
-      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["visitantes"] });
@@ -61,33 +40,27 @@ const Visitantes = () => {
       setForm({ nome: "", documento: "", militarResponsavel: "", localDestino: "", observacoes: "" });
       setShowCadastro(false);
     },
-    onError: () => toast({ title: "Erro", description: "Não foi possível registrar.", variant: "destructive" }),
   });
 
   const saidaMutation = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase.from("visitantes").update({
-        hora_saida: new Date().toISOString(),
-      }).eq("id", id);
-      if (error) throw error;
+      localDb.update<Visitante>("visitantes", id, { hora_saida: new Date().toISOString() });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["visitantes"] });
       toast({ title: "Saída Registrada" });
     },
-    onError: () => toast({ title: "Erro", description: "Não foi possível registrar.", variant: "destructive" }),
   });
 
-  const handleCadastro = async () => {
+  const handleCadastro = () => {
     if (!form.nome || !form.documento || !form.militarResponsavel || !form.localDestino) {
       toast({ title: "Erro", description: "Preencha todos os campos obrigatórios.", variant: "destructive" });
       return;
     }
-    const cabo = await getCaboOnDuty();
-    cadastroMutation.mutate(cabo);
+    cadastroMutation.mutate(getCaboOnDuty());
   };
 
-  const presentes = visitantes.filter(v => !v.hora_saida).length;
+  const presentes = visitantes.filter((v) => !v.hora_saida).length;
 
   return (
     <div>
@@ -124,7 +97,7 @@ const Visitantes = () => {
             {isLoading ? (
               <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
             ) : visitantes.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum visitante registrado hoje</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum visitante registrado</TableCell></TableRow>
             ) : visitantes.map((v) => (
               <TableRow key={v.id} className="hover:bg-secondary/30">
                 <TableCell className="text-sm font-medium">{v.nome}</TableCell>
