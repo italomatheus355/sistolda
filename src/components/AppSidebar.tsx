@@ -31,12 +31,10 @@ export function AppSidebar() {
     <Sidebar className="border-r border-border">
       <SidebarHeader className="p-4 border-b border-border">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-primary/20 flex items-center justify-center">
-            <Shield className="w-5 h-5 text-primary" />
-          </div>
+          <img src={logoHU41} alt="HU-41" className="w-9 h-9 object-contain" />
           <div>
-            <h1 className="text-sm font-bold text-foreground tracking-wide">CLAVICULÁRIO</h1>
-            <p className="text-[10px] text-muted-foreground font-mono tracking-widest">CONTROLE v1.0</p>
+            <h1 className="text-sm font-bold text-foreground tracking-wide">SISTOLDA</h1>
+            <p className="text-[10px] text-muted-foreground font-mono tracking-widest">CPD v1.0</p>
           </div>
         </div>
       </SidebarHeader>
