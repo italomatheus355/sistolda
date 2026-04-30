@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import logoHU41 from "@/assets/logo-hu41.png";
 
 export function LoginPage() {
   const { signIn } = useAuth();

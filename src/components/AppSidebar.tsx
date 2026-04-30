@@ -12,6 +12,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import logoHU41 from "@/assets/logo-hu41.png";
 
 const modules = [
   { title: "Chaves", url: "/chaves", icon: Key },
