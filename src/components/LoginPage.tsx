@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import logoHU41 from "@/assets/logo-hu41.png";
 
 export function LoginPage() {
   const { signIn } = useAuth();
@@ -31,11 +32,9 @@ export function LoginPage() {
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center mx-auto mb-4">
-            <Shield className="w-8 h-8 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground tracking-wide">CLAVICULÁRIO</h1>
-          <p className="text-xs font-mono text-muted-foreground tracking-widest mt-1">SISTEMA DE CONTROLE DE PORTARIA</p>
+          <img src={logoHU41} alt="HU-41" className="w-20 h-20 mx-auto mb-4 object-contain" />
+          <h1 className="text-2xl font-bold text-foreground tracking-wide">SISTOLDA</h1>
+          <p className="text-xs font-mono text-muted-foreground tracking-widest mt-1">CENTRO DE PROCESSAMENTO DE DADOS</p>
         </div>
 
         {/* Form */}
