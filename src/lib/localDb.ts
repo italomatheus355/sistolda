@@ -50,7 +50,7 @@ export interface HistoricoChave {
 export interface Viatura {
   id: string;
   numero: number;
-  prefixo: string;
+  prefixo: string; // Nome operacional (ex: Ford Ka, L200)
   modelo: string;
   placa: string | null;
   status: "disponivel" | "em_uso" | "manutencao";
@@ -88,25 +88,27 @@ export interface Visitante {
   cabo_registro: string | null;
 }
 
-export interface Material {
+export interface RegistroMaterial {
   id: string;
-  nome: string;
-  descricao: string | null;
-  status: "disponivel" | "emprestado";
-  militar_responsavel: string | null;
+  nome_material: string;
+  militar: string;
+  nip: string;
+  destino: string;
+  data_registro: string;
+  cabo_registro: string | null;
 }
 
-export interface HistoricoMaterial {
+export interface PDV {
   id: string;
-  material_id: string;
-  material_nome: string;
-  militar: string;
-  matricula: string | null;
-  data_saida: string;
-  data_retorno: string | null;
-  cabo_saida: string | null;
-  cabo_retorno: string | null;
-  status: "em_uso" | "devolvido";
+  data: string; // YYYY-MM-DD
+  aeronave: string;
+  piloto: string;
+  copiloto: string;
+  mecanico_voo: string;
+  gsac1: string;
+  gsac2: string;
+  vn: string;
+  created_at: string;
 }
 
 export interface BlocoHorario { inicio: string; fim: string }
