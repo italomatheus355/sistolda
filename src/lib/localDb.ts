@@ -159,18 +159,11 @@ function seedChaves(): Chave[] {
 
 function seedViaturas(): Viatura[] {
   return [
-    { id: "vtr-1", numero: 1, prefixo: "VTR-001", modelo: "Ford Ka", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 45000 },
-    { id: "vtr-2", numero: 2, prefixo: "VTR-002", modelo: "Mitsubishi L200", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 78000 },
+    { id: "vtr-1", numero: 1, prefixo: "Ford Ka", modelo: "Ford Ka", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 45000 },
+    { id: "vtr-2", numero: 2, prefixo: "L200", modelo: "Mitsubishi L200", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 78000 },
   ];
 }
 
-function seedMateriais(): Material[] {
-  return [
-    { id: "mat-1", nome: "Rádio HT", descricao: "Comunicador portátil", status: "disponivel", militar_responsavel: null },
-    { id: "mat-2", nome: "Lanterna Tática", descricao: null, status: "disponivel", militar_responsavel: null },
-    { id: "mat-3", nome: "Binóculo", descricao: null, status: "disponivel", militar_responsavel: null },
-  ];
-}
 
 function seedUsers(): UserAccount[] {
   const now = new Date().toISOString();
@@ -193,8 +186,9 @@ type TableName =
   | "chaves" | "historico_chaves"
   | "viaturas" | "historico_viaturas"
   | "visitantes"
-  | "materiais" | "historico_materiais"
+  | "registros_materiais"
   | "escala_cabos"
+  | "pdv"
   | "users";
 
 const seeders: Record<TableName, () => any[]> = {
@@ -203,9 +197,9 @@ const seeders: Record<TableName, () => any[]> = {
   viaturas: seedViaturas,
   historico_viaturas: () => [],
   visitantes: () => [],
-  materiais: seedMateriais,
-  historico_materiais: () => [],
+  registros_materiais: () => [],
   escala_cabos: seedEscala,
+  pdv: () => [],
   users: seedUsers,
 };
 
