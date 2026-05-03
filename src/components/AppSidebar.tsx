@@ -1,4 +1,4 @@
-import { Key, Car, Users, Package, Calendar, Shield, UserCog } from "lucide-react";
+import { Key, Car, Users, Package, Calendar, UserCog, Plane } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -19,6 +19,7 @@ const modules = [
   { title: "Viaturas", url: "/viaturas", icon: Car },
   { title: "Visitantes", url: "/visitantes", icon: Users },
   { title: "Material", url: "/material", icon: Package },
+  { title: "PDV", url: "/pdv", icon: Plane },
 ];
 
 const admin = [
