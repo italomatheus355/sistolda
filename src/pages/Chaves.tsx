@@ -10,12 +10,19 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 
+// Simulação de identificação por NIP (substituir por integração biométrica futura)
+function identificarMilitarPorNip(nip: string): string {
+  const trimmed = nip.trim();
+  if (!trimmed) return "";
+  // Mock: retorna nome simulado a partir do NIP
+  return `Sgt Fulano [NIP ${trimmed}]`;
+}
+
 const Chaves = () => {
   const queryClient = useQueryClient();
   const [selectedChave, setSelectedChave] = useState<Chave | null>(null);
   const [dialogType, setDialogType] = useState<"retirada" | "devolucao" | null>(null);
-  const [matricula, setMatricula] = useState("");
-  const [nomeMilitar, setNomeMilitar] = useState("");
+  const [nip, setNip] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   const { data: chaves = [], isLoading } = useQuery({
@@ -32,29 +39,30 @@ const Chaves = () => {
   });
 
   const retiradaMutation = useMutation({
-    mutationFn: async ({ chave, militar, mat, cabo }: { chave: Chave; militar: string; mat: string; cabo: string }) => {
+    mutationFn: async ({ chave, militar, nipVal, cabo }: { chave: Chave; militar: string; nipVal: string; cabo: string }) => {
       localDb.update<Chave>("chaves", chave.id, {
         status: "emprestada",
-        militar_responsavel: `${militar} (Mat. ${mat})`,
+        militar_responsavel: `${militar}`,
       });
       localDb.insert<HistoricoChave>("historico_chaves", {
         id: uid(),
         chave_id: chave.id,
         chave_nome: chave.nome,
-        militar: `${militar} (Mat. ${mat})`,
-        matricula: mat,
+        militar,
+        matricula: nipVal,
         data_retirada: new Date().toISOString(),
         data_devolucao: null,
         cabo_retirada: cabo,
         cabo_devolucao: null,
         status: "em_uso",
       });
+      return militar;
     },
-    onSuccess: () => {
+    onSuccess: (militar) => {
       queryClient.invalidateQueries({ queryKey: ["chaves"] });
       queryClient.invalidateQueries({ queryKey: ["historico_chaves"] });
-      toast({ title: "Chave Retirada", description: `${selectedChave?.nome} registrada.` });
-      setDialogType(null); setSelectedChave(null); setMatricula(""); setNomeMilitar("");
+      toast({ title: "Retirada confirmada", description: `${militar} retirou a chave ${selectedChave?.nome}.` });
+      setDialogType(null); setSelectedChave(null); setNip("");
     },
   });
 
@@ -75,7 +83,7 @@ const Chaves = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chaves"] });
       queryClient.invalidateQueries({ queryKey: ["historico_chaves"] });
-      toast({ title: "Chave Devolvida", description: `${selectedChave?.nome} devolvida.` });
+      toast({ title: "Devolução confirmada", description: `${selectedChave?.nome} devolvida.` });
       setDialogType(null); setSelectedChave(null);
     },
   });
@@ -83,15 +91,16 @@ const Chaves = () => {
   const handleCardClick = (chave: Chave) => {
     setSelectedChave(chave);
     setDialogType(chave.status === "disponivel" ? "retirada" : "devolucao");
-    setMatricula(""); setNomeMilitar("");
+    setNip("");
   };
 
   const handleRetirada = () => {
-    if (!nomeMilitar.trim() || !matricula.trim()) {
-      toast({ title: "Erro", description: "Informe nome e matrícula do militar.", variant: "destructive" });
+    if (!nip.trim()) {
+      toast({ title: "Erro", description: "Informe o NIP do militar.", variant: "destructive" });
       return;
     }
-    retiradaMutation.mutate({ chave: selectedChave!, militar: nomeMilitar, mat: matricula, cabo: getCaboOnDuty() });
+    const militar = identificarMilitarPorNip(nip);
+    retiradaMutation.mutate({ chave: selectedChave!, militar, nipVal: nip, cabo: getCaboOnDuty() });
   };
 
   const handleDevolucao = () => {
@@ -101,8 +110,8 @@ const Chaves = () => {
   const filtered = chaves.filter(
     (c) =>
       c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.departamento || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+      c.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(c.numero).includes(searchTerm)
   );
 
   const disponiveisCount = chaves.filter((c) => c.status === "disponivel").length;
@@ -113,14 +122,13 @@ const Chaves = () => {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Key className="w-6 h-6 text-primary" />
-            Chaves
+            <Key className="w-6 h-6 text-primary" /> Chaves
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Controle de retirada e devolução — {chaves.length} chaves cadastradas</p>
+          <p className="text-sm text-muted-foreground mt-1">Controle de retirada e devolução — {chaves.length} chaves</p>
         </div>
         <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="status-dot-available" /> {disponiveisCount} disponíveis</span>
-          <span className="flex items-center gap-1.5"><span className="status-dot-borrowed" /> {emprestadas} emprestadas</span>
+          <span className="flex items-center gap-1.5"><span className="status-dot-borrowed" /> {emprestadas} indisponíveis</span>
         </div>
       </div>
 
@@ -135,29 +143,28 @@ const Chaves = () => {
         <TabsContent value="visao-geral">
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar chave, departamento ou código..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-secondary border-border" />
+            <Input placeholder="Buscar chave ou número..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-secondary border-border" />
           </div>
 
           {isLoading ? (
             <div className="text-center text-muted-foreground py-12 font-mono text-sm">Carregando chaves...</div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
               {filtered.map((chave) => (
                 <button
                   key={chave.id}
                   onClick={() => handleCardClick(chave)}
-                  className={`relative p-4 rounded-lg border transition-all duration-200 text-left hover:scale-[1.02] ${
+                  className={`relative p-3 rounded-lg border transition-all duration-200 text-left hover:scale-[1.02] ${
                     chave.status === "disponivel"
-                      ? "bg-card border-status-available/30 hover:border-status-available/60 card-glow"
-                      : "bg-card border-status-borrowed/30 hover:border-status-borrowed/60"
+                      ? "bg-card border-status-available/40 hover:border-status-available card-glow"
+                      : "bg-card border-status-borrowed/40 hover:border-status-borrowed"
                   }`}
                 >
                   <div className="flex items-start justify-between mb-2">
                     <span className={chave.status === "disponivel" ? "status-dot-available" : "status-dot-borrowed"} />
-                    <span className="text-[10px] font-mono text-muted-foreground">{chave.codigo}</span>
+                    <span className="text-[10px] font-mono text-muted-foreground">Nº {chave.numero}</span>
                   </div>
                   <h3 className="text-sm font-semibold text-foreground truncate">{chave.nome}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">{chave.departamento}</p>
                   {chave.militar_responsavel && (
                     <p className="text-[10px] text-status-borrowed mt-2 font-mono truncate">{chave.militar_responsavel}</p>
                   )}
@@ -174,10 +181,10 @@ const Chaves = () => {
                 <TableRow className="bg-secondary/50 hover:bg-secondary/50">
                   <TableHead className="text-xs font-mono">CHAVE</TableHead>
                   <TableHead className="text-xs font-mono">MILITAR</TableHead>
+                  <TableHead className="text-xs font-mono">NIP</TableHead>
                   <TableHead className="text-xs font-mono">RETIRADA</TableHead>
                   <TableHead className="text-xs font-mono">DEVOLUÇÃO</TableHead>
-                  <TableHead className="text-xs font-mono">CABO RETIRADA</TableHead>
-                  <TableHead className="text-xs font-mono">CABO DEVOLUÇÃO</TableHead>
+                  <TableHead className="text-xs font-mono">CABO AUX.</TableHead>
                   <TableHead className="text-xs font-mono">STATUS</TableHead>
                 </TableRow>
               </TableHeader>
@@ -186,10 +193,10 @@ const Chaves = () => {
                   <TableRow key={h.id} className="hover:bg-secondary/30">
                     <TableCell className="text-sm font-medium">{h.chave_nome}</TableCell>
                     <TableCell className="text-sm">{h.militar}</TableCell>
+                    <TableCell className="text-xs font-mono">{h.matricula || "—"}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{new Date(h.data_retirada).toLocaleString("pt-BR")}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{h.data_devolucao ? new Date(h.data_devolucao).toLocaleString("pt-BR") : "—"}</TableCell>
-                    <TableCell className="text-sm">{h.cabo_retirada || "—"}</TableCell>
-                    <TableCell className="text-sm">{h.cabo_devolucao || "—"}</TableCell>
+                    <TableCell className="text-sm">{h.cabo_devolucao || h.cabo_retirada || "—"}</TableCell>
                     <TableCell>
                       <Badge variant={h.status === "devolvida" ? "default" : "destructive"} className={h.status === "devolvida" ? "bg-primary/20 text-primary border-0" : ""}>
                         {h.status === "devolvida" ? "Devolvida" : "Em uso"}
@@ -198,7 +205,7 @@ const Chaves = () => {
                   </TableRow>
                 ))}
                 {historico.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-8">Nenhum registro encontrado</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-8">Nenhum registro</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -206,44 +213,52 @@ const Chaves = () => {
         </TabsContent>
       </Tabs>
 
+      {/* Dialog Retirada — pequeno e simples (apenas NIP) */}
       <Dialog open={dialogType === "retirada"} onOpenChange={() => setDialogType(null)}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Key className="w-5 h-5 text-primary" /> Retirada de Chave</DialogTitle>
-            <DialogDescription>{selectedChave?.codigo} — {selectedChave?.nome}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Key className="w-5 h-5 text-primary" /> Retirada — {selectedChave?.nome}</DialogTitle>
+            <DialogDescription>Chave Nº {selectedChave?.numero}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
+          <div className="space-y-3 mt-2">
             <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">NOME DO MILITAR</label>
-              <Input value={nomeMilitar} onChange={(e) => setNomeMilitar(e.target.value)} placeholder="Ex: Sd João Silva" className="bg-secondary border-border" />
-            </div>
-            <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">MATRÍCULA</label>
-              <Input value={matricula} onChange={(e) => setMatricula(e.target.value)} placeholder="Ex: 12345" className="bg-secondary border-border" />
+              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">NIP</label>
+              <Input
+                value={nip}
+                onChange={(e) => setNip(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleRetirada()}
+                placeholder="Digite o NIP"
+                className="bg-secondary border-border"
+                autoFocus
+              />
             </div>
             <Button className="w-full gap-2" variant="outline" disabled>
-              <Fingerprint className="w-4 h-4" /> Ler Biometria (integração futura)
+              <Fingerprint className="w-4 h-4" /> Coletar biometria
             </Button>
             <Button onClick={handleRetirada} className="w-full" disabled={retiradaMutation.isPending}>
-              {retiradaMutation.isPending ? "Registrando..." : "Confirmar Retirada"}
+              {retiradaMutation.isPending ? "Registrando..." : "Confirmar retirada"}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* Dialog Devolução — Cabo Auxiliar de Serviço + biometria */}
       <Dialog open={dialogType === "devolucao"} onOpenChange={() => setDialogType(null)}>
-        <DialogContent className="bg-card border-border">
+        <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><RotateCcw className="w-5 h-5 text-primary" /> Devolução de Chave</DialogTitle>
-            <DialogDescription>{selectedChave?.nome} — Em uso por {selectedChave?.militar_responsavel}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><RotateCcw className="w-5 h-5 text-primary" /> Devolução — {selectedChave?.nome}</DialogTitle>
+            <DialogDescription>Em uso por {selectedChave?.militar_responsavel}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 mt-2">
+          <div className="space-y-3 mt-2">
             <div className="p-3 rounded-md bg-secondary/50 border border-border">
-              <p className="text-xs text-muted-foreground font-mono">CABO AUXILIAR EM SERVIÇO</p>
+              <p className="text-xs text-muted-foreground font-mono">CABO AUXILIAR DE SERVIÇO</p>
               <p className="text-sm font-semibold text-foreground mt-1">{getCaboOnDuty()}</p>
             </div>
+            <Button className="w-full gap-2" variant="outline" disabled>
+              <Fingerprint className="w-4 h-4" /> Coletar biometria
+            </Button>
             <Button onClick={handleDevolucao} className="w-full" disabled={devolucaoMutation.isPending}>
-              {devolucaoMutation.isPending ? "Registrando..." : "Confirmar Devolução"}
+              {devolucaoMutation.isPending ? "Registrando..." : "Confirmar devolução"}
             </Button>
           </div>
         </DialogContent>

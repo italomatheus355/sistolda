@@ -174,7 +174,7 @@ const Viaturas = () => {
                     <span className={statusDot[v.status]} />
                     <span className="text-[10px] font-mono text-muted-foreground">{statusLabel[v.status]}</span>
                   </div>
-                  <h3 className="text-lg font-bold text-foreground font-mono">{v.prefixo}</h3>
+                  <h3 className="text-lg font-bold text-foreground">{v.prefixo}</h3>
                   <p className="text-sm text-muted-foreground mt-1">{v.modelo}</p>
                   {v.km_atual !== null && <p className="text-[10px] text-muted-foreground mt-1 font-mono">KM: {v.km_atual.toLocaleString("pt-BR")}</p>}
                   {v.militar_responsavel && (
@@ -196,7 +196,8 @@ const Viaturas = () => {
                   <TableHead className="text-xs font-mono">DESTINO</TableHead>
                   <TableHead className="text-xs font-mono">SAÍDA</TableHead>
                   <TableHead className="text-xs font-mono">RETORNO</TableHead>
-                  <TableHead className="text-xs font-mono">KM</TableHead>
+                  <TableHead className="text-xs font-mono">KM SAÍDA</TableHead>
+                  <TableHead className="text-xs font-mono">KM RETORNO</TableHead>
                   <TableHead className="text-xs font-mono">STATUS</TableHead>
                 </TableRow>
               </TableHeader>
@@ -208,7 +209,8 @@ const Viaturas = () => {
                     <TableCell className="text-sm text-muted-foreground">{h.destino}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{new Date(h.data_saida).toLocaleString("pt-BR")}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{h.data_retorno ? new Date(h.data_retorno).toLocaleString("pt-BR") : "—"}</TableCell>
-                    <TableCell className="text-xs font-mono">{h.km_rodado != null ? `${h.km_rodado} km` : "—"}</TableCell>
+                    <TableCell className="text-xs font-mono">{h.km_saida != null ? `${h.km_saida.toLocaleString("pt-BR")} km` : "—"}</TableCell>
+                    <TableCell className="text-xs font-mono">{h.km_retorno != null ? `${h.km_retorno.toLocaleString("pt-BR")} km` : "—"}</TableCell>
                     <TableCell>
                       <Badge variant={h.status === "retornada" ? "default" : "destructive"} className={h.status === "retornada" ? "bg-primary/20 text-primary border-0" : ""}>
                         {h.status === "retornada" ? "Retornou" : "Em uso"}
@@ -217,7 +219,7 @@ const Viaturas = () => {
                   </TableRow>
                 ))}
                 {historico.length === 0 && (
-                  <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-8">Nenhum registro</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground text-sm py-8">Nenhum registro</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>

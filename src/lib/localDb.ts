@@ -50,7 +50,7 @@ export interface HistoricoChave {
 export interface Viatura {
   id: string;
   numero: number;
-  prefixo: string;
+  prefixo: string; // Nome operacional (ex: Ford Ka, L200)
   modelo: string;
   placa: string | null;
   status: "disponivel" | "em_uso" | "manutencao";
@@ -88,25 +88,27 @@ export interface Visitante {
   cabo_registro: string | null;
 }
 
-export interface Material {
+export interface RegistroMaterial {
   id: string;
-  nome: string;
-  descricao: string | null;
-  status: "disponivel" | "emprestado";
-  militar_responsavel: string | null;
+  nome_material: string;
+  militar: string;
+  nip: string;
+  destino: string;
+  data_registro: string;
+  cabo_registro: string | null;
 }
 
-export interface HistoricoMaterial {
+export interface PDV {
   id: string;
-  material_id: string;
-  material_nome: string;
-  militar: string;
-  matricula: string | null;
-  data_saida: string;
-  data_retorno: string | null;
-  cabo_saida: string | null;
-  cabo_retorno: string | null;
-  status: "em_uso" | "devolvido";
+  data: string; // YYYY-MM-DD
+  aeronave: string;
+  piloto: string;
+  copiloto: string;
+  mecanico_voo: string;
+  gsac1: string;
+  gsac2: string;
+  vn: string;
+  created_at: string;
 }
 
 export interface BlocoHorario { inicio: string; fim: string }
@@ -157,18 +159,11 @@ function seedChaves(): Chave[] {
 
 function seedViaturas(): Viatura[] {
   return [
-    { id: "vtr-1", numero: 1, prefixo: "VTR-001", modelo: "Ford Ka", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 45000 },
-    { id: "vtr-2", numero: 2, prefixo: "VTR-002", modelo: "Mitsubishi L200", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 78000 },
+    { id: "vtr-1", numero: 1, prefixo: "Ford Ka", modelo: "Ford Ka", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 45000 },
+    { id: "vtr-2", numero: 2, prefixo: "L200", modelo: "Mitsubishi L200", placa: null, status: "disponivel", militar_responsavel: null, km_atual: 78000 },
   ];
 }
 
-function seedMateriais(): Material[] {
-  return [
-    { id: "mat-1", nome: "Rádio HT", descricao: "Comunicador portátil", status: "disponivel", militar_responsavel: null },
-    { id: "mat-2", nome: "Lanterna Tática", descricao: null, status: "disponivel", militar_responsavel: null },
-    { id: "mat-3", nome: "Binóculo", descricao: null, status: "disponivel", militar_responsavel: null },
-  ];
-}
 
 function seedUsers(): UserAccount[] {
   const now = new Date().toISOString();
@@ -191,8 +186,9 @@ type TableName =
   | "chaves" | "historico_chaves"
   | "viaturas" | "historico_viaturas"
   | "visitantes"
-  | "materiais" | "historico_materiais"
+  | "registros_materiais"
   | "escala_cabos"
+  | "pdv"
   | "users";
 
 const seeders: Record<TableName, () => any[]> = {
@@ -201,9 +197,9 @@ const seeders: Record<TableName, () => any[]> = {
   viaturas: seedViaturas,
   historico_viaturas: () => [],
   visitantes: () => [],
-  materiais: seedMateriais,
-  historico_materiais: () => [],
+  registros_materiais: () => [],
   escala_cabos: seedEscala,
+  pdv: () => [],
   users: seedUsers,
 };
 

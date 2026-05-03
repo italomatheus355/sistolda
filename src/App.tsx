@@ -12,6 +12,7 @@ import Visitantes from "./pages/Visitantes";
 import MaterialPage from "./pages/MaterialPage";
 import Escala from "./pages/Escala";
 import Usuarios from "./pages/Usuarios";
+import Pdv from "./pages/Pdv";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -43,6 +44,7 @@ function AppRoutes() {
         <Route path="/visitantes" element={<Visitantes />} />
         <Route path="/material" element={<MaterialPage />} />
         <Route path="/escala" element={<Escala />} />
+        <Route path="/pdv" element={<Pdv />} />
         <Route path="/usuarios" element={<Usuarios />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
