@@ -1,7 +1,7 @@
 // Local data layer — substitui completamente o Supabase usando localStorage.
 // Toda persistência fica no navegador. Dados simulados / seed inicial.
 
-const STORAGE_PREFIX = "claviculario:";
+const STORAGE_PREFIX = "sistolda:v2:";
 
 function load<T>(key: string, fallback: T): T {
   try {
