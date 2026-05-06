@@ -167,7 +167,7 @@ const Chaves = () => {
                     >
                       <div className="flex items-start justify-between mb-2">
                         <span className={chave.status === "disponivel" ? "status-dot-available" : "status-dot-borrowed"} />
-                        <span className="text-[10px] font-mono text-muted-foreground">Nº {String(chave.numero).padStart(2, "0")}</span>
+                        <span className="text-base font-mono font-bold text-foreground/90 leading-none">Nº {String(chave.numero).padStart(2, "0")}</span>
                       </div>
                       <h3 className="text-sm font-semibold text-foreground truncate">{chave.nome}</h3>
                       {chave.militar_responsavel && (
