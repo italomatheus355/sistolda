@@ -136,28 +136,79 @@ export interface UserAccount {
 }
 
 // ============ Seed ============
-const NOMES_CHAVES_48 = [
-  "Imediato","Sala do Comandante","Secretaria","Sala P1","Sala P2","Sala P3","Sala P4",
-  "Sala de Reuniões","Tesouraria","Almoxarifado","Material Bélico","Sala Rádio","Sala CFTV",
-  "Sala TI","Arquivo Geral","Arquivo Confidencial","Refeitório","Cozinha","Despensa",
-  "Sala de Aula 1","Sala de Aula 2","Auditório","Biblioteca","Enfermaria","Farmácia",
-  "Garagem","Oficina","Lavagem","Posto Combustível","Vestiário Masculino","Vestiário Feminino",
-  "Banheiro Tropa","Alojamento Praças","Alojamento Sargentos","Alojamento Oficiais",
-  "Cassino","Sala de Estar","Lavanderia","Sala Geradores","Casa de Bombas","Subestação",
-  "Portaria Principal","Portaria Auxiliar","Guarita 1","Guarita 2","Paiol Munição",
-  "Paiol Armamento","Paiol Refrigeração",
+const CHAVES_SECRETAS: string[] = [
+  "Escritório do Imediato",
+  "Câmara do Comandante",
+  "Divisão de Armamento",
+  "Escoteria Fábio",
+  "Departamento de Operações",
+  "Divisão de Fase Humana",
+  "Departamento de Segurança da Aviação",
+  "Departamento de Manutenção",
+  "CPD",
+  "Divisão de Pessoal",
+  "Divisão de Suprimentos",
+  "SECOM",
+  "(Secreta) Seção de Inteligência",
+];
+
+const CHAVES_GERAIS: string[] = [
+  "Oficina de SV/HV",
+  "Oficina de MV",
+  "Paiol de Pronto Uso (PPU)",
+  "Sala de Estar de CB/MN",
+  "Divisão de Serviços Gerais",
+  "Sala do Briefing",
+  "Sala de Estar de 2SG/3SG",
+  "Paiol de Salvamento",
+  "Paiol de Sobrevivência",
+  "Oficina de Infláveis",
+  "Sala de Estar de SO/1SG",
+  "Divisão de Controle de Qualidade",
+  "Divisão de Planejamento",
+  "Paiol de Material Comum",
+  "Paiol de Tintas",
+  "Praça D'Armas",
+  "Vestiário dos Oficiais",
+  "Dormitório do Contramestre",
+  "Divisão de Apoio",
+  "Divisão de Aviônica",
+  "Oficina de Baterias",
+  "Sala do Conversor",
+  "Vestiário Feminino",
+  "Cisterna",
+  "Portão de Acesso (Retaguarda)",
+  "Mestre 1",
+  "Paiol do Mestre 2",
+  "Paiol do Mestre 3",
+  "Paiol do Mestre 4",
+  "Sala do Compressor",
+  "POG1",
+  "POG2",
+  "Paiol do CAV",
+  "Viatura Ford Ka",
+  "Viatura L200",
+  "Paiol do Reboque",
+  "Paiol de Refrigeração",
+  "Vago",
 ];
 
 function seedChaves(): Chave[] {
-  return NOMES_CHAVES_48.map((nome, i) => ({
-    id: `chave-${i + 1}`,
-    numero: i + 1,
-    nome,
+  const all = [
+    ...CHAVES_SECRETAS.map((nome, i) => ({ nome, categoria: "secreta" as const, numero: i + 1 })),
+    ...CHAVES_GERAIS.map((nome, i) => ({ nome, categoria: "geral" as const, numero: CHAVES_SECRETAS.length + i + 1 })),
+  ];
+  return all.map((c) => ({
+    id: `chave-${c.numero}`,
+    numero: c.numero,
+    nome: c.nome,
     departamento: null,
-    codigo: `CH-${String(i + 1).padStart(3, "0")}`,
+    codigo: `CH-${String(c.numero).padStart(2, "0")}`,
     status: "disponivel" as const,
     militar_responsavel: null,
+    categoria: c.categoria,
   }));
+}
 }
 
 function seedViaturas(): Viatura[] {
