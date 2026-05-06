@@ -24,6 +24,8 @@ export function uid(): string {
 }
 
 // ============ Tipos ============
+export type CategoriaChave = "secreta" | "geral";
+
 export interface Chave {
   id: string;
   numero: number;
@@ -32,6 +34,7 @@ export interface Chave {
   codigo: string;
   status: "disponivel" | "emprestada";
   militar_responsavel: string | null;
+  categoria: CategoriaChave;
 }
 
 export interface HistoricoChave {
