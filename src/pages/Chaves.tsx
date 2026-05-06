@@ -132,47 +132,57 @@ const Chaves = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="visao-geral">
+      <Tabs defaultValue="secretas">
         <TabsList className="bg-secondary mb-6">
-          <TabsTrigger value="visao-geral" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Visão Geral</TabsTrigger>
+          <TabsTrigger value="secretas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Chaves Secretas</TabsTrigger>
+          <TabsTrigger value="gerais" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Chaves Gerais</TabsTrigger>
           <TabsTrigger value="historico" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <History className="w-3.5 h-3.5 mr-1.5" /> Histórico
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="visao-geral">
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input placeholder="Buscar chave ou número..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-secondary border-border" />
-          </div>
+        {(["secretas", "gerais"] as const).map((tab) => {
+          const cat = tab === "secretas" ? "secreta" : "geral";
+          const list = filtered.filter((c) => c.categoria === cat);
+          return (
+            <TabsContent key={tab} value={tab}>
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input placeholder="Buscar chave ou número..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-secondary border-border" />
+              </div>
 
-          {isLoading ? (
-            <div className="text-center text-muted-foreground py-12 font-mono text-sm">Carregando chaves...</div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-              {filtered.map((chave) => (
-                <button
-                  key={chave.id}
-                  onClick={() => handleCardClick(chave)}
-                  className={`relative p-3 rounded-lg border transition-all duration-200 text-left hover:scale-[1.02] ${
-                    chave.status === "disponivel"
-                      ? "bg-card border-status-available/40 hover:border-status-available card-glow"
-                      : "bg-card border-status-borrowed/40 hover:border-status-borrowed"
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <span className={chave.status === "disponivel" ? "status-dot-available" : "status-dot-borrowed"} />
-                    <span className="text-[10px] font-mono text-muted-foreground">Nº {chave.numero}</span>
-                  </div>
-                  <h3 className="text-sm font-semibold text-foreground truncate">{chave.nome}</h3>
-                  {chave.militar_responsavel && (
-                    <p className="text-[10px] text-status-borrowed mt-2 font-mono truncate">{chave.militar_responsavel}</p>
+              {isLoading ? (
+                <div className="text-center text-muted-foreground py-12 font-mono text-sm">Carregando chaves...</div>
+              ) : (
+                <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 ${tab === "secretas" ? "p-4 rounded-lg border border-status-borrowed/30 bg-status-borrowed/5" : ""}`}>
+                  {list.map((chave) => (
+                    <button
+                      key={chave.id}
+                      onClick={() => handleCardClick(chave)}
+                      className={`relative p-3 rounded-lg border transition-all duration-200 text-left hover:scale-[1.02] ${
+                        chave.status === "disponivel"
+                          ? "bg-card border-status-available/40 hover:border-status-available card-glow"
+                          : "bg-card border-status-borrowed/40 hover:border-status-borrowed"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <span className={chave.status === "disponivel" ? "status-dot-available" : "status-dot-borrowed"} />
+                        <span className="text-[10px] font-mono text-muted-foreground">Nº {String(chave.numero).padStart(2, "0")}</span>
+                      </div>
+                      <h3 className="text-sm font-semibold text-foreground truncate">{chave.nome}</h3>
+                      {chave.militar_responsavel && (
+                        <p className="text-[10px] text-status-borrowed mt-2 font-mono truncate">{chave.militar_responsavel}</p>
+                      )}
+                    </button>
+                  ))}
+                  {list.length === 0 && (
+                    <div className="col-span-full text-center text-muted-foreground py-8 text-sm">Nenhuma chave encontrada</div>
                   )}
-                </button>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                </div>
+              )}
+            </TabsContent>
+          );
+        })}
 
         <TabsContent value="historico">
           <div className="rounded-lg border border-border overflow-hidden">
