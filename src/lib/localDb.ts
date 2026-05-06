@@ -209,7 +209,6 @@ function seedChaves(): Chave[] {
     categoria: c.categoria,
   }));
 }
-}
 
 function seedViaturas(): Viatura[] {
   return [
