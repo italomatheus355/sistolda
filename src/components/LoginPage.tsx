@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, User, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/hooks/useAuth";
@@ -8,19 +8,19 @@ import logoHU41 from "@/assets/logo-hu41.png";
 
 export function LoginPage() {
   const { signIn } = useAuth();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast({ title: "Erro", description: "Preencha e-mail e senha.", variant: "destructive" });
+    if (!username || !password) {
+      toast({ title: "Erro", description: "Preencha usuário e senha.", variant: "destructive" });
       return;
     }
     setLoading(true);
-    const { error } = await signIn(email, password);
+    const { error } = await signIn(username, password);
     if (error) {
       toast({ title: "Acesso Negado", description: "Credenciais inválidas.", variant: "destructive" });
     }
@@ -30,39 +30,39 @@ export function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
-        {/* Header */}
         <div className="text-center mb-8">
           <img src={logoHU41} alt="HU-41" className="w-20 h-20 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-foreground tracking-wide">SISTOLDA</h1>
           <p className="text-xs font-mono text-muted-foreground tracking-widest mt-1">CENTRO DE PROCESSAMENTO DE DADOS</p>
         </div>
 
-        {/* Form */}
         <div className="bg-card border border-border rounded-xl p-6 space-y-4">
-          <div>
-            <p className="text-[10px] font-mono text-muted-foreground mb-5 text-center tracking-widest">IDENTIFICAÇÃO DO OPERADOR</p>
-          </div>
+          <p className="text-[10px] font-mono text-muted-foreground mb-5 text-center tracking-widest">IDENTIFICAÇÃO DO OPERADOR</p>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">E-MAIL</label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="usuario@exemplo.com"
-                className="bg-secondary border-border"
-                autoComplete="email"
-              />
+              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">USUÁRIO</label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="usuário"
+                  className="bg-secondary border-border pl-9"
+                  autoComplete="username"
+                  autoFocus
+                />
+              </div>
             </div>
             <div>
               <label className="text-xs font-mono text-muted-foreground mb-1.5 block">SENHA</label>
               <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="bg-secondary border-border pr-10"
+                  className="bg-secondary border-border pl-9 pr-10"
                   autoComplete="current-password"
                 />
                 <button
@@ -80,9 +80,9 @@ export function LoginPage() {
           </form>
         </div>
 
-        <div className="text-center text-[10px] text-muted-foreground mt-4 font-mono space-y-1">
+        <div className="text-center text-[10px] text-muted-foreground mt-4 font-mono space-y-0.5">
           <p>Acesso restrito — contate o administrador</p>
-          <p className="opacity-60">Demo: admin@portaria.mil / Admin@2026</p>
+          <p className="opacity-60">admin / operacoes / segorg / servico</p>
         </div>
       </div>
     </div>
