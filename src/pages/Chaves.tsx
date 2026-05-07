@@ -47,6 +47,7 @@ const Chaves = () => {
       localDb.insert<HistoricoChave>("historico_chaves", {
         id: uid(),
         chave_id: chave.id,
+        chave_numero: chave.numero,
         chave_nome: chave.nome,
         militar,
         matricula: nipVal,
