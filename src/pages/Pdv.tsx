@@ -1,24 +1,35 @@
 import { useEffect, useState } from "react";
-import { Plane, Save } from "lucide-react";
+import { Plane, Save, Plus, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localDb, PDV, uid } from "@/lib/localDb";
+import { localDb, PDV, PdvTripulacao, PdvMissao, uid } from "@/lib/localDb";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const today = () => new Date().toISOString().split("T")[0];
 
-const emptyForm = {
-  aeronave: "", piloto: "", copiloto: "", mecanico_voo: "", gsac1: "", gsac2: "", vn: "",
-};
+const emptyTripLinha = (): PdvTripulacao => ({
+  anv_svc: "", periodo: "", p1: "", p2: "", mcv: "", fiel: "", gsar1: "", gsar2: "", vn: "",
+});
+
+const emptyMissao = (): PdvMissao => ({
+  id: uid(), evt: "", pmpe: "", anv: "", abast_aut: "", etd: "", eta: "", area: "",
+  p1: "", p2: "", ps_xy_fiel: "", observacoes: "",
+});
 
 const PdvPage = () => {
-  const { isAdmin } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const canEdit = isAdmin || user?.role === "operacoes";
   const queryClient = useQueryClient();
   const [date, setDate] = useState(today());
-  const [form, setForm] = useState(emptyForm);
+
+  const [tripulacao, setTripulacao] = useState<PdvTripulacao[]>([emptyTripLinha()]);
+  const [configAsd, setConfigAsd] = useState("");
+  const [materialGsar, setMaterialGsar] = useState("");
+  const [missoes, setMissoes] = useState<PdvMissao[]>([emptyMissao()]);
 
   const { data: registros = [] } = useQuery({
     queryKey: ["pdv"],
@@ -29,42 +40,72 @@ const PdvPage = () => {
 
   useEffect(() => {
     if (current) {
-      setForm({
-        aeronave: current.aeronave, piloto: current.piloto, copiloto: current.copiloto,
-        mecanico_voo: current.mecanico_voo, gsac1: current.gsac1, gsac2: current.gsac2, vn: current.vn,
-      });
+      setTripulacao(current.tripulacao?.length ? current.tripulacao : [emptyTripLinha()]);
+      setConfigAsd(current.config_asd || "");
+      setMaterialGsar(current.material_gsar || "");
+      setMissoes(current.missoes?.length ? current.missoes : [emptyMissao()]);
     } else {
-      setForm(emptyForm);
+      setTripulacao([emptyTripLinha()]);
+      setConfigAsd("");
+      setMaterialGsar("");
+      setMissoes([emptyMissao()]);
     }
   }, [date, current?.id]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const payload = { tripulacao, config_asd: configAsd, material_gsar: materialGsar, missoes };
       if (current) {
-        localDb.update<PDV>("pdv", current.id, { ...form });
+        localDb.update<PDV>("pdv", current.id, payload);
       } else {
-        localDb.insert<PDV>("pdv", { id: uid(), data: date, ...form, created_at: new Date().toISOString() });
+        localDb.insert<PDV>("pdv", { id: uid(), data: date, ...payload, created_at: new Date().toISOString() });
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pdv"] });
-      toast({ title: "PDV salvo", description: `Plano Diário de Voo de ${new Date(date + "T12:00").toLocaleDateString("pt-BR")} atualizado.` });
+      toast({ title: "PDV salvo", description: `Plano de ${new Date(date + "T12:00").toLocaleDateString("pt-BR")} atualizado.` });
     },
   });
 
-  const fields: { key: keyof typeof form; label: string }[] = [
-    { key: "aeronave", label: "AERONAVE" },
-    { key: "piloto", label: "PILOTO" },
-    { key: "copiloto", label: "COPILOTO" },
-    { key: "mecanico_voo", label: "MECÂNICO DE VOO" },
-    { key: "gsac1", label: "GSAC 1" },
-    { key: "gsac2", label: "GSAC 2" },
+  const updateTrip = (i: number, key: keyof PdvTripulacao, val: string) =>
+    setTripulacao((p) => p.map((t, idx) => (idx === i ? { ...t, [key]: val } : t)));
+  const addTrip = () => setTripulacao((p) => [...p, emptyTripLinha()]);
+  const removeTrip = (i: number) => setTripulacao((p) => p.filter((_, idx) => idx !== i));
+
+  const updateMissao = (i: number, key: keyof PdvMissao, val: string) =>
+    setMissoes((p) => p.map((m, idx) => (idx === i ? { ...m, [key]: val } : m)));
+  const addMissao = () => setMissoes((p) => [...p, emptyMissao()]);
+  const removeMissao = (i: number) => setMissoes((p) => p.filter((_, idx) => idx !== i));
+
+  const tripCols: { key: keyof PdvTripulacao; label: string }[] = [
+    { key: "anv_svc", label: "ANV SVC" },
+    { key: "periodo", label: "PERÍODO" },
+    { key: "p1", label: "1P" },
+    { key: "p2", label: "2P" },
+    { key: "mcv", label: "McV" },
+    { key: "fiel", label: "FIEL" },
+    { key: "gsar1", label: "GSAR 1" },
+    { key: "gsar2", label: "GSAR 2" },
     { key: "vn", label: "VN" },
+  ];
+
+  const missaoCols: { key: keyof PdvMissao; label: string; w?: string }[] = [
+    { key: "evt", label: "EVT" },
+    { key: "pmpe", label: "PMPE" },
+    { key: "anv", label: "ANV" },
+    { key: "abast_aut", label: "ABAST AUT." },
+    { key: "etd", label: "ETD" },
+    { key: "eta", label: "ETA" },
+    { key: "area", label: "ÁREA" },
+    { key: "p1", label: "1P" },
+    { key: "p2", label: "2P" },
+    { key: "ps_xy_fiel", label: "PS/XY/FIEL" },
+    { key: "observacoes", label: "OBSERVAÇÕES", w: "min-w-[180px]" },
   ];
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Plane className="w-6 h-6 text-primary" /> PDV — Plano Diário de Voo
@@ -73,7 +114,7 @@ const PdvPage = () => {
         </div>
         <div className="flex items-center gap-3">
           <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="bg-secondary border-border w-44" />
-          {isAdmin && (
+          {canEdit && (
             <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="gap-2">
               <Save className="w-4 h-4" /> {saveMutation.isPending ? "Salvando..." : "Salvar"}
             </Button>
@@ -81,57 +122,112 @@ const PdvPage = () => {
         </div>
       </div>
 
-      <div className="rounded-lg border border-border bg-card p-5 mb-6">
-        <p className="text-xs font-mono text-primary mb-4">PAINEL OPERACIONAL — {new Date(date + "T12:00").toLocaleDateString("pt-BR")}</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {fields.map((f) => (
-            <div key={f.key}>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">{f.label}</label>
-              <Input
-                value={form[f.key]}
-                onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                className="bg-secondary border-border"
-                disabled={!isAdmin}
-              />
-            </div>
-          ))}
+      {/* TRIPULAÇÃO */}
+      <div className="rounded-lg border border-border bg-card mb-6 overflow-hidden">
+        <div className="px-4 py-2 bg-secondary/50 flex items-center justify-between">
+          <p className="text-xs font-mono text-primary tracking-wider">TRIPULAÇÃO / SERVIÇO</p>
+          {canEdit && (
+            <Button size="sm" variant="outline" onClick={addTrip} className="gap-1 h-7 text-xs">
+              <Plus className="w-3 h-3" /> Linha
+            </Button>
+          )}
+        </div>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-secondary/30 hover:bg-secondary/30">
+                {tripCols.map((c) => (
+                  <TableHead key={c.key} className="text-[10px] font-mono">{c.label}</TableHead>
+                ))}
+                {canEdit && <TableHead className="w-10" />}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tripulacao.map((t, i) => (
+                <TableRow key={i}>
+                  {tripCols.map((c) => (
+                    <TableCell key={c.key} className="p-1">
+                      <Input
+                        value={t[c.key]}
+                        onChange={(e) => updateTrip(i, c.key, e.target.value)}
+                        disabled={!canEdit}
+                        className="bg-secondary border-border h-8 text-xs"
+                      />
+                    </TableCell>
+                  ))}
+                  {canEdit && (
+                    <TableCell className="p-1">
+                      {tripulacao.length > 1 && (
+                        <Button size="icon" variant="ghost" onClick={() => removeTrip(i)} className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-t border-border">
+          <div>
+            <label className="text-xs font-mono text-muted-foreground mb-1.5 block">CONFIGURAÇÃO ASD</label>
+            <Textarea value={configAsd} onChange={(e) => setConfigAsd(e.target.value)} disabled={!canEdit} className="bg-secondary border-border min-h-[60px]" />
+          </div>
+          <div>
+            <label className="text-xs font-mono text-muted-foreground mb-1.5 block">MATERIAL GSAR</label>
+            <Textarea value={materialGsar} onChange={(e) => setMaterialGsar(e.target.value)} disabled={!canEdit} className="bg-secondary border-border min-h-[60px]" />
+          </div>
         </div>
       </div>
 
-      <div className="rounded-lg border border-border overflow-hidden">
-        <div className="px-4 py-2 bg-secondary/50">
-          <p className="text-xs font-mono text-muted-foreground">HISTÓRICO</p>
+      {/* MISSÕES */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <div className="px-4 py-2 bg-secondary/50 flex items-center justify-between">
+          <p className="text-xs font-mono text-primary tracking-wider">MISSÕES / EVENTOS</p>
+          {canEdit && (
+            <Button size="sm" variant="outline" onClick={addMissao} className="gap-1 h-7 text-xs">
+              <Plus className="w-3 h-3" /> Missão
+            </Button>
+          )}
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-secondary/30 hover:bg-secondary/30">
-              <TableHead className="text-xs font-mono">DATA</TableHead>
-              <TableHead className="text-xs font-mono">AERONAVE</TableHead>
-              <TableHead className="text-xs font-mono">PILOTO</TableHead>
-              <TableHead className="text-xs font-mono">COPILOTO</TableHead>
-              <TableHead className="text-xs font-mono">MEC. VOO</TableHead>
-              <TableHead className="text-xs font-mono">GSAC 1</TableHead>
-              <TableHead className="text-xs font-mono">GSAC 2</TableHead>
-              <TableHead className="text-xs font-mono">VN</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {registros.length === 0 ? (
-              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum PDV registrado</TableCell></TableRow>
-            ) : registros.map((r) => (
-              <TableRow key={r.id} className="hover:bg-secondary/30 cursor-pointer" onClick={() => setDate(r.data)}>
-                <TableCell className="text-xs font-mono">{new Date(r.data + "T12:00").toLocaleDateString("pt-BR")}</TableCell>
-                <TableCell className="text-sm font-medium">{r.aeronave}</TableCell>
-                <TableCell className="text-sm">{r.piloto}</TableCell>
-                <TableCell className="text-sm">{r.copiloto}</TableCell>
-                <TableCell className="text-sm">{r.mecanico_voo}</TableCell>
-                <TableCell className="text-sm">{r.gsac1}</TableCell>
-                <TableCell className="text-sm">{r.gsac2}</TableCell>
-                <TableCell className="text-sm">{r.vn}</TableCell>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-secondary/30 hover:bg-secondary/30">
+                {missaoCols.map((c) => (
+                  <TableHead key={c.key} className={`text-[10px] font-mono ${c.w || ""}`}>{c.label}</TableHead>
+                ))}
+                {canEdit && <TableHead className="w-10" />}
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {missoes.map((m, i) => (
+                <TableRow key={m.id}>
+                  {missaoCols.map((c) => (
+                    <TableCell key={c.key} className="p-1">
+                      <Input
+                        value={m[c.key]}
+                        onChange={(e) => updateMissao(i, c.key, e.target.value)}
+                        disabled={!canEdit}
+                        className={`bg-secondary border-border h-8 text-xs ${c.w || ""}`}
+                      />
+                    </TableCell>
+                  ))}
+                  {canEdit && (
+                    <TableCell className="p-1">
+                      {missoes.length > 1 && (
+                        <Button size="icon" variant="ghost" onClick={() => removeMissao(i)} className="h-7 w-7 text-muted-foreground hover:text-destructive">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     </div>
   );
