@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Package, Plus, Search } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Package, Plus, Search, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { localDb, getCaboOnDuty, RegistroMaterial, uid } from "@/lib/localDb";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -14,28 +14,29 @@ const MaterialPage = () => {
   const [form, setForm] = useState({ nome_material: "", militar: "", nip: "", destino: "" });
   const [search, setSearch] = useState("");
 
+  // filtros
+  const [fMaterial, setFMaterial] = useState("");
+  const [fMilitar, setFMilitar] = useState("");
+  const [fDestino, setFDestino] = useState("");
+  const [fIni, setFIni] = useState("");
+  const [fFim, setFFim] = useState("");
+
   const { data: registros = [] } = useQuery({
     queryKey: ["registros_materiais"],
     queryFn: async () =>
-      localDb.list<RegistroMaterial>("registros_materiais")
-        .sort((a, b) => b.data_registro.localeCompare(a.data_registro)),
+      localDb.list<RegistroMaterial>("registros_materiais").sort((a, b) => b.data_registro.localeCompare(a.data_registro)),
   });
 
   const insertMutation = useMutation({
     mutationFn: async () => {
       localDb.insert<RegistroMaterial>("registros_materiais", {
-        id: uid(),
-        nome_material: form.nome_material,
-        militar: form.militar,
-        nip: form.nip,
-        destino: form.destino,
-        data_registro: new Date().toISOString(),
-        cabo_registro: getCaboOnDuty(),
+        id: uid(), nome_material: form.nome_material, militar: form.militar, nip: form.nip,
+        destino: form.destino, data_registro: new Date().toISOString(), cabo_registro: getCaboOnDuty(),
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["registros_materiais"] });
-      toast({ title: "Material registrado", description: `${form.nome_material} registrado com sucesso.` });
+      toast({ title: "Material registrado", description: `${form.nome_material} registrado.` });
       setForm({ nome_material: "", militar: "", nip: "", destino: "" });
       setOpen(false);
     },
@@ -49,28 +50,46 @@ const MaterialPage = () => {
     insertMutation.mutate();
   };
 
-  const filtered = registros.filter((r) =>
-    [r.nome_material, r.militar, r.nip, r.destino].join(" ").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = useMemo(() => registros.filter((r) => {
+    const txt = [r.nome_material, r.militar, r.nip, r.destino].join(" ").toLowerCase();
+    if (search && !txt.includes(search.toLowerCase())) return false;
+    if (fMaterial && !r.nome_material.toLowerCase().includes(fMaterial.toLowerCase())) return false;
+    if (fMilitar && !(r.militar.toLowerCase().includes(fMilitar.toLowerCase()) || r.nip.includes(fMilitar))) return false;
+    if (fDestino && !r.destino.toLowerCase().includes(fDestino.toLowerCase())) return false;
+    const d = r.data_registro.slice(0, 10);
+    if (fIni && d < fIni) return false;
+    if (fFim && d > fFim) return false;
+    return true;
+  }), [registros, search, fMaterial, fMilitar, fDestino, fIni, fFim]);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Package className="w-6 h-6 text-primary" />
-            Material
+            <Package className="w-6 h-6 text-primary" /> Material
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Registro simples de saída de material</p>
+          <p className="text-sm text-muted-foreground mt-1">Registro de saída de material</p>
         </div>
         <Button onClick={() => setOpen(true)} className="gap-2">
           <Plus className="w-4 h-4" /> Novo Registro
         </Button>
       </div>
 
-      <div className="relative mb-4">
+      <div className="relative mb-3">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Buscar..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 bg-secondary border-border" />
+        <Input placeholder="Busca rápida..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10 bg-secondary border-border" />
+      </div>
+
+      <div className="rounded-lg border border-border p-3 mb-4 bg-card">
+        <div className="flex items-center gap-2 mb-3 text-xs font-mono text-muted-foreground"><Filter className="w-3.5 h-3.5" /> FILTROS</div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+          <Input placeholder="Material" value={fMaterial} onChange={(e) => setFMaterial(e.target.value)} className="bg-secondary border-border" />
+          <Input placeholder="Militar / NIP" value={fMilitar} onChange={(e) => setFMilitar(e.target.value)} className="bg-secondary border-border" />
+          <Input placeholder="Destino" value={fDestino} onChange={(e) => setFDestino(e.target.value)} className="bg-secondary border-border" />
+          <Input type="date" value={fIni} onChange={(e) => setFIni(e.target.value)} className="bg-secondary border-border" />
+          <Input type="date" value={fFim} onChange={(e) => setFFim(e.target.value)} className="bg-secondary border-border" />
+        </div>
       </div>
 
       <div className="rounded-lg border border-border overflow-hidden">

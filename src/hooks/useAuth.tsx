@@ -1,41 +1,37 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { localDb, UserAccount } from "@/lib/localDb";
+import { localDb, UserAccount, UserRole, canAccess } from "@/lib/localDb";
 
 interface SessionUser {
   id: string;
-  email: string;
-  nome: string;
-  posto_grad: string | null;
-  matricula: string | null;
-  role: "administrador" | "cabo_auxiliar";
+  username: string;
+  role: UserRole;
 }
 
 interface AuthContextType {
   user: SessionUser | null;
-  profile: SessionUser | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (username: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  can: (route: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  profile: null,
   loading: true,
   signIn: async () => ({ error: null }),
   signOut: async () => {},
   isAdmin: false,
+  can: () => false,
 });
 
-const SESSION_KEY = "claviculario:session";
+const SESSION_KEY = "sistolda:session";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Garante que a tabela de users seja semeada
     localDb.list<UserAccount>("users");
     try {
       const raw = localStorage.getItem(SESSION_KEY);
@@ -44,16 +40,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(false);
   }, []);
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (username: string, password: string) => {
     const users = localDb.list<UserAccount>("users");
     const found = users.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+      (u) => u.username.toLowerCase() === username.toLowerCase().trim() && u.password === password
     );
     if (!found) return { error: new Error("Credenciais inválidas") };
-    const sess: SessionUser = {
-      id: found.id, email: found.email, nome: found.nome,
-      posto_grad: found.posto_grad, matricula: found.matricula, role: found.role,
-    };
+    const sess: SessionUser = { id: found.id, username: found.username, role: found.role };
     localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
     setUser(sess);
     return { error: null };
@@ -64,10 +57,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
   };
 
-  const isAdmin = user?.role === "administrador";
+  const isAdmin = user?.role === "admin";
+  const can = (route: string) => canAccess(user?.role, route);
 
   return (
-    <AuthContext.Provider value={{ user, profile: user, loading, signIn, signOut, isAdmin }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, isAdmin, can }}>
       {children}
     </AuthContext.Provider>
   );

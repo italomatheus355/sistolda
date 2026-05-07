@@ -17,6 +17,26 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+function Guard({ route, children }: { route: string; children: React.ReactNode }) {
+  const { can } = useAuth();
+  if (!can(route)) return <Navigate to="/" replace />;
+  return <>{children}</>;
+}
+
+function HomeRedirect() {
+  const { user } = useAuth();
+  if (!user) return null;
+  // Primeira rota acessível para o perfil
+  const order = ["chaves", "viaturas", "visitantes", "material", "pdv", "escala", "usuarios"];
+  const map: Record<string, string> = {
+    chaves: "/chaves", viaturas: "/viaturas", visitantes: "/visitantes",
+    material: "/material", pdv: "/pdv", escala: "/escala", usuarios: "/usuarios",
+  };
+  const { can } = useAuth();
+  for (const r of order) if (can(r)) return <Navigate to={map[r]} replace />;
+  return <Navigate to="/pdv" replace />;
+}
+
 function AppRoutes() {
   const { user, loading } = useAuth();
 
@@ -31,21 +51,19 @@ function AppRoutes() {
     );
   }
 
-  if (!user) {
-    return <LoginPage />;
-  }
+  if (!user) return <LoginPage />;
 
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Navigate to="/chaves" replace />} />
-        <Route path="/chaves" element={<Chaves />} />
-        <Route path="/viaturas" element={<Viaturas />} />
-        <Route path="/visitantes" element={<Visitantes />} />
-        <Route path="/material" element={<MaterialPage />} />
-        <Route path="/escala" element={<Escala />} />
-        <Route path="/pdv" element={<Pdv />} />
-        <Route path="/usuarios" element={<Usuarios />} />
+        <Route path="/" element={<HomeRedirect />} />
+        <Route path="/chaves"     element={<Guard route="chaves"><Chaves /></Guard>} />
+        <Route path="/viaturas"   element={<Guard route="viaturas"><Viaturas /></Guard>} />
+        <Route path="/visitantes" element={<Guard route="visitantes"><Visitantes /></Guard>} />
+        <Route path="/material"   element={<Guard route="material"><MaterialPage /></Guard>} />
+        <Route path="/pdv"        element={<Guard route="pdv"><Pdv /></Guard>} />
+        <Route path="/escala"     element={<Guard route="escala"><Escala /></Guard>} />
+        <Route path="/usuarios"   element={<Guard route="usuarios"><Usuarios /></Guard>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>

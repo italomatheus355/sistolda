@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { LogOut, Shield } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { profile, signOut, isAdmin } = useAuth();
+  const { user, signOut, isAdmin } = useAuth();
 
   return (
     <SidebarProvider>
@@ -24,7 +24,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <Shield className="w-3 h-3" /> ADMIN
                 </span>
               )}
-              <span className="text-xs font-mono text-muted-foreground hidden sm:block">{profile?.nome}</span>
+              <span className="text-xs font-mono text-muted-foreground hidden sm:block">{user?.username}</span>
               <Button variant="ghost" size="icon" onClick={signOut} className="h-7 w-7 text-muted-foreground hover:text-foreground" title="Sair">
                 <LogOut className="w-4 h-4" />
               </Button>

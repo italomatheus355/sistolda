@@ -1,7 +1,7 @@
 // Local data layer — substitui completamente o Supabase usando localStorage.
 // Toda persistência fica no navegador. Dados simulados / seed inicial.
 
-const STORAGE_PREFIX = "sistolda:v2:";
+const STORAGE_PREFIX = "sistolda:v3:";
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -15,7 +15,6 @@ function load<T>(key: string, fallback: T): T {
 
 function save<T>(key: string, value: T) {
   localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
-  // dispatch local event para invalidar queries
   window.dispatchEvent(new CustomEvent("localdb:change", { detail: { key } }));
 }
 
@@ -24,6 +23,7 @@ export function uid(): string {
 }
 
 // ============ Tipos ============
+export type UserRole = "admin" | "operacoes" | "segorg" | "servico";
 export type CategoriaChave = "secreta" | "geral";
 
 export interface Chave {
@@ -40,6 +40,7 @@ export interface Chave {
 export interface HistoricoChave {
   id: string;
   chave_id: string;
+  chave_numero: number;
   chave_nome: string;
   militar: string;
   matricula: string | null;
@@ -53,7 +54,7 @@ export interface HistoricoChave {
 export interface Viatura {
   id: string;
   numero: number;
-  prefixo: string; // Nome operacional (ex: Ford Ka, L200)
+  prefixo: string;
   modelo: string;
   placa: string | null;
   status: "disponivel" | "em_uso" | "manutencao";
@@ -101,16 +102,41 @@ export interface RegistroMaterial {
   cabo_registro: string | null;
 }
 
+// ====== PDV (Plano Diário de Voo) ======
+export interface PdvTripulacao {
+  anv_svc: string;
+  periodo: string;
+  p1: string;
+  p2: string;
+  mcv: string;
+  fiel: string;
+  gsar1: string;
+  gsar2: string;
+  vn: string;
+}
+
+export interface PdvMissao {
+  id: string;
+  evt: string;
+  pmpe: string;
+  anv: string;
+  abast_aut: string;
+  etd: string;
+  eta: string;
+  area: string;
+  p1: string;
+  p2: string;
+  ps_xy_fiel: string;
+  observacoes: string;
+}
+
 export interface PDV {
   id: string;
   data: string; // YYYY-MM-DD
-  aeronave: string;
-  piloto: string;
-  copiloto: string;
-  mecanico_voo: string;
-  gsac1: string;
-  gsac2: string;
-  vn: string;
+  tripulacao: PdvTripulacao[];        // primeira tabela (linhas)
+  config_asd: string;
+  material_gsar: string;
+  missoes: PdvMissao[];               // segunda tabela
   created_at: string;
 }
 
@@ -118,20 +144,17 @@ export interface BlocoHorario { inicio: string; fim: string }
 
 export interface EscalaCabo {
   id: string;
-  data: string;        // YYYY-MM-DD
-  cabo_id: number;     // 1 ou 2
+  data: string;
+  cabo_id: number;
   cabo_nome: string;
   blocos: BlocoHorario[];
 }
 
 export interface UserAccount {
   id: string;
-  email: string;
+  username: string;
   password: string;
-  nome: string;
-  posto_grad: string | null;
-  matricula: string | null;
-  role: "administrador" | "cabo_auxiliar";
+  role: UserRole;
   created_at: string;
 }
 
@@ -140,9 +163,9 @@ const CHAVES_SECRETAS: string[] = [
   "Escritório do Imediato",
   "Câmara do Comandante",
   "Divisão de Armamento",
-  "Escoteria Fábio",
+  "Escoteria FAB",                    // CHAVE 04 corrigida
   "Departamento de Operações",
-  "Divisão de Fase Humana",
+  "Divisão de Fator Humano",          // CHAVE 06 corrigida
   "Departamento de Segurança da Aviação",
   "Departamento de Manutenção",
   "CPD",
@@ -217,24 +240,24 @@ function seedViaturas(): Viatura[] {
   ];
 }
 
-
 function seedUsers(): UserAccount[] {
   const now = new Date().toISOString();
   return [
-    { id: "user-admin", email: "admin@portaria.mil", password: "Admin@2026", nome: "Administrador", posto_grad: "Sgt", matricula: "00001", role: "administrador", created_at: now },
-    { id: "user-cabo", email: "cabo@portaria.mil", password: "Cabo@2026", nome: "Cabo de Plantão", posto_grad: "Cb", matricula: "00002", role: "cabo_auxiliar", created_at: now },
+    { id: "u-admin",     username: "admin",     password: "admin",     role: "admin",     created_at: now },
+    { id: "u-operacoes", username: "operacoes", password: "operacoes", role: "operacoes", created_at: now },
+    { id: "u-segorg",    username: "segorg",    password: "segorg",    role: "segorg",    created_at: now },
+    { id: "u-servico",   username: "servico",   password: "servico",   role: "servico",   created_at: now },
   ];
 }
 
 function seedEscala(): EscalaCabo[] {
   const today = new Date().toISOString().split("T")[0];
   return [
-    { id: "esc-1", data: today, cabo_id: 1, cabo_nome: "Cb Pereira", blocos: [{ inicio: "08:00", fim: "20:00" }] },
-    { id: "esc-2", data: today, cabo_id: 2, cabo_nome: "Cb Rodrigues", blocos: [{ inicio: "20:00", fim: "08:00" }] },
+    { id: "esc-1", data: today, cabo_id: 1, cabo_nome: "Cabo Auxiliar 01", blocos: [{ inicio: "08:00", fim: "20:00" }] },
+    { id: "esc-2", data: today, cabo_id: 2, cabo_nome: "Cabo Auxiliar 02", blocos: [{ inicio: "20:00", fim: "08:00" }] },
   ];
 }
 
-// ============ API genérica de tabelas ============
 type TableName =
   | "chaves" | "historico_chaves"
   | "viaturas" | "historico_viaturas"
@@ -271,9 +294,7 @@ function setAll<T>(table: TableName, rows: T[]) {
 }
 
 export const localDb = {
-  list<T>(table: TableName): T[] {
-    return getAll<T>(table);
-  },
+  list<T>(table: TableName): T[] { return getAll<T>(table); },
   insert<T extends { id?: string }>(table: TableName, row: Omit<T, "id"> & { id?: string }): T {
     const rows = getAll<T>(table);
     const newRow = { ...(row as any), id: row.id || uid() } as T;
@@ -298,7 +319,7 @@ export const localDb = {
   },
 };
 
-// ============ Cabo on duty (lógica do RPC) ============
+// ============ Cabo on duty ============
 export function getCaboOnDuty(): string {
   const today = new Date().toISOString().split("T")[0];
   const escalas = localDb.list<EscalaCabo>("escala_cabos").filter((e) => e.data === today);
@@ -308,13 +329,12 @@ export function getCaboOnDuty(): string {
       const sH = parseInt(b.inicio.split(":")[0]);
       const eH = parseInt(b.fim.split(":")[0]);
       const inBlock = sH < eH ? currH >= sH && currH < eH : currH >= sH || currH < eH;
-      if (inBlock) return e.cabo_nome || "Não identificado";
+      if (inBlock) return e.cabo_nome || "Cabo Auxiliar de Serviço";
     }
   }
-  return "Não identificado";
+  return "Cabo Auxiliar de Serviço";
 }
 
-// ============ Subscribe (para invalidação reativa) ============
 export function subscribeChanges(cb: (key: string) => void): () => void {
   const handler = (e: Event) => {
     const detail = (e as CustomEvent).detail;
@@ -322,4 +342,17 @@ export function subscribeChanges(cb: (key: string) => void): () => void {
   };
   window.addEventListener("localdb:change", handler);
   return () => window.removeEventListener("localdb:change", handler);
+}
+
+// ============ Permissões por perfil ============
+export const ROLE_ACCESS: Record<UserRole, string[]> = {
+  admin:     ["chaves", "viaturas", "visitantes", "material", "pdv", "escala", "usuarios"],
+  operacoes: ["pdv"],
+  segorg:    ["chaves"],
+  servico:   ["chaves", "viaturas", "visitantes", "material"],
+};
+
+export function canAccess(role: UserRole | undefined, route: string): boolean {
+  if (!role) return false;
+  return ROLE_ACCESS[role]?.includes(route) ?? false;
 }
