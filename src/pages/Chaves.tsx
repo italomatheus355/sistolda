@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Key, History, Search, Fingerprint, RotateCcw } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Key, History, Search, Fingerprint, RotateCcw, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { localDb, getCaboOnDuty, Chave, HistoricoChave, uid } from "@/lib/localDb";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 
-// Simulação de identificação por NIP (substituir por integração biométrica futura)
+// Identificação simulada (futura biometria/NIP)
 function identificarMilitarPorNip(nip: string): string {
-  const trimmed = nip.trim();
-  if (!trimmed) return "";
-  // Mock: retorna nome simulado a partir do NIP
-  return `Sgt Fulano [NIP ${trimmed}]`;
+  const t = nip.trim();
+  if (!t) return "";
+  return `Militar NIP ${t}`;
 }
 
 const Chaves = () => {
@@ -25,6 +25,13 @@ const Chaves = () => {
   const [nip, setNip] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
+  // filtros do histórico
+  const [fData, setFData] = useState("");
+  const [fDataFim, setFDataFim] = useState("");
+  const [fMilitar, setFMilitar] = useState("");
+  const [fChave, setFChave] = useState("todas");
+  const [fStatus, setFStatus] = useState<"todos" | "em_uso" | "devolvida">("todos");
+
   const { data: chaves = [], isLoading } = useQuery({
     queryKey: ["chaves"],
     queryFn: async () => localDb.list<Chave>("chaves").sort((a, b) => a.numero - b.numero),
@@ -33,36 +40,24 @@ const Chaves = () => {
   const { data: historico = [] } = useQuery({
     queryKey: ["historico_chaves"],
     queryFn: async () =>
-      localDb.list<HistoricoChave>("historico_chaves")
-        .sort((a, b) => b.data_retirada.localeCompare(a.data_retirada))
-        .slice(0, 100),
+      localDb.list<HistoricoChave>("historico_chaves").sort((a, b) => b.data_retirada.localeCompare(a.data_retirada)),
   });
 
   const retiradaMutation = useMutation({
     mutationFn: async ({ chave, militar, nipVal, cabo }: { chave: Chave; militar: string; nipVal: string; cabo: string }) => {
-      localDb.update<Chave>("chaves", chave.id, {
-        status: "emprestada",
-        militar_responsavel: `${militar}`,
-      });
+      localDb.update<Chave>("chaves", chave.id, { status: "emprestada", militar_responsavel: militar });
       localDb.insert<HistoricoChave>("historico_chaves", {
-        id: uid(),
-        chave_id: chave.id,
-        chave_numero: chave.numero,
-        chave_nome: chave.nome,
-        militar,
-        matricula: nipVal,
+        id: uid(), chave_id: chave.id, chave_numero: chave.numero, chave_nome: chave.nome,
+        militar, matricula: nipVal,
         data_retirada: new Date().toISOString(),
-        data_devolucao: null,
-        cabo_retirada: cabo,
-        cabo_devolucao: null,
-        status: "em_uso",
+        data_devolucao: null, cabo_retirada: cabo, cabo_devolucao: null, status: "em_uso",
       });
       return militar;
     },
     onSuccess: (militar) => {
       queryClient.invalidateQueries({ queryKey: ["chaves"] });
       queryClient.invalidateQueries({ queryKey: ["historico_chaves"] });
-      toast({ title: "Retirada confirmada", description: `${militar} retirou a chave ${selectedChave?.nome}.` });
+      toast({ title: "Retirada confirmada", description: `${militar} retirou ${selectedChave?.nome}.` });
       setDialogType(null); setSelectedChave(null); setNip("");
     },
   });
@@ -75,9 +70,7 @@ const Chaves = () => {
         .sort((a, b) => b.data_retirada.localeCompare(a.data_retirada))[0];
       if (hist) {
         localDb.update<HistoricoChave>("historico_chaves", hist.id, {
-          data_devolucao: new Date().toISOString(),
-          cabo_devolucao: cabo,
-          status: "devolvida",
+          data_devolucao: new Date().toISOString(), cabo_devolucao: cabo, status: "devolvida",
         });
       }
     },
@@ -96,24 +89,29 @@ const Chaves = () => {
   };
 
   const handleRetirada = () => {
-    if (!nip.trim()) {
-      toast({ title: "Erro", description: "Informe o NIP do militar.", variant: "destructive" });
-      return;
-    }
-    const militar = identificarMilitarPorNip(nip);
-    retiradaMutation.mutate({ chave: selectedChave!, militar, nipVal: nip, cabo: getCaboOnDuty() });
+    if (!nip.trim()) { toast({ title: "Erro", description: "Informe o NIP do militar.", variant: "destructive" }); return; }
+    retiradaMutation.mutate({ chave: selectedChave!, militar: identificarMilitarPorNip(nip), nipVal: nip, cabo: getCaboOnDuty() });
   };
 
-  const handleDevolucao = () => {
-    devolucaoMutation.mutate({ chave: selectedChave!, cabo: getCaboOnDuty() });
-  };
+  const handleDevolucao = () => devolucaoMutation.mutate({ chave: selectedChave!, cabo: getCaboOnDuty() });
 
   const filtered = chaves.filter(
-    (c) =>
-      c.nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(c.numero).includes(searchTerm)
+    (c) => c.nome.toLowerCase().includes(searchTerm.toLowerCase()) || String(c.numero).includes(searchTerm)
   );
+
+  const filteredHistorico = useMemo(() => {
+    return historico.filter((h) => {
+      if (fData && !h.data_retirada.startsWith(fData) && (fDataFim ? h.data_retirada.slice(0, 10) > fDataFim : true)) {
+        if (!(h.data_retirada.slice(0, 10) >= fData && (!fDataFim || h.data_retirada.slice(0, 10) <= fDataFim))) return false;
+      } else if (fData && !fDataFim && !h.data_retirada.startsWith(fData)) {
+        return false;
+      }
+      if (fMilitar && !(h.militar.toLowerCase().includes(fMilitar.toLowerCase()) || (h.matricula || "").includes(fMilitar))) return false;
+      if (fChave !== "todas" && String(h.chave_id) !== fChave) return false;
+      if (fStatus !== "todos" && h.status !== fStatus) return false;
+      return true;
+    });
+  }, [historico, fData, fDataFim, fMilitar, fChave, fStatus]);
 
   const disponiveisCount = chaves.filter((c) => c.status === "disponivel").length;
   const emprestadas = chaves.filter((c) => c.status === "emprestada").length;
@@ -186,6 +184,39 @@ const Chaves = () => {
         })}
 
         <TabsContent value="historico">
+          <div className="rounded-lg border border-border p-3 mb-4 bg-card">
+            <div className="flex items-center gap-2 mb-3 text-xs font-mono text-muted-foreground">
+              <Filter className="w-3.5 h-3.5" /> FILTROS
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              <Input type="date" value={fData} onChange={(e) => setFData(e.target.value)} className="bg-secondary border-border" placeholder="De" />
+              <Input type="date" value={fDataFim} onChange={(e) => setFDataFim(e.target.value)} className="bg-secondary border-border" placeholder="Até" />
+              <Input value={fMilitar} onChange={(e) => setFMilitar(e.target.value)} placeholder="Militar / NIP" className="bg-secondary border-border" />
+              <Select value={fChave} onValueChange={setFChave}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Chave" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas as chaves</SelectItem>
+                  {chaves.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>Nº {String(c.numero).padStart(2, "0")} — {c.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={fStatus} onValueChange={(v) => setFStatus(v as any)}>
+                <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos status</SelectItem>
+                  <SelectItem value="em_uso">Em uso</SelectItem>
+                  <SelectItem value="devolvida">Devolvida</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {(fData || fDataFim || fMilitar || fChave !== "todas" || fStatus !== "todos") && (
+              <Button size="sm" variant="ghost" className="mt-2 h-7 text-xs" onClick={() => { setFData(""); setFDataFim(""); setFMilitar(""); setFChave("todas"); setFStatus("todos"); }}>
+                Limpar filtros
+              </Button>
+            )}
+          </div>
+
           <div className="rounded-lg border border-border overflow-hidden">
             <Table>
               <TableHeader>
@@ -200,9 +231,13 @@ const Chaves = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {historico.map((h) => (
+                {filteredHistorico.map((h) => (
                   <TableRow key={h.id} className="hover:bg-secondary/30">
-                    <TableCell className="text-sm font-medium">{h.chave_nome}</TableCell>
+                    <TableCell className="text-sm">
+                      <span className="font-mono font-bold text-primary">CHAVE {String(h.chave_numero ?? "").padStart(2, "0")}</span>
+                      <span className="text-muted-foreground"> — </span>
+                      <span className="font-medium">{h.chave_nome}</span>
+                    </TableCell>
                     <TableCell className="text-sm">{h.militar}</TableCell>
                     <TableCell className="text-xs font-mono">{h.matricula || "—"}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{new Date(h.data_retirada).toLocaleString("pt-BR")}</TableCell>
@@ -215,7 +250,7 @@ const Chaves = () => {
                     </TableCell>
                   </TableRow>
                 ))}
-                {historico.length === 0 && (
+                {filteredHistorico.length === 0 && (
                   <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground text-sm py-8">Nenhum registro</TableCell></TableRow>
                 )}
               </TableBody>
@@ -224,7 +259,7 @@ const Chaves = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog Retirada — pequeno e simples (apenas NIP) */}
+      {/* Dialog Retirada */}
       <Dialog open={dialogType === "retirada"} onOpenChange={() => setDialogType(null)}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
@@ -233,18 +268,11 @@ const Chaves = () => {
           </DialogHeader>
           <div className="space-y-3 mt-2">
             <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">NIP</label>
-              <Input
-                value={nip}
-                onChange={(e) => setNip(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleRetirada()}
-                placeholder="Digite o NIP"
-                className="bg-secondary border-border"
-                autoFocus
-              />
+              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">NIP DO MILITAR</label>
+              <Input value={nip} onChange={(e) => setNip(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRetirada()} placeholder="Digite o NIP" className="bg-secondary border-border" autoFocus />
             </div>
             <Button className="w-full gap-2" variant="outline" disabled>
-              <Fingerprint className="w-4 h-4" /> Coletar biometria
+              <Fingerprint className="w-4 h-4" /> Coletar biometria (futuro)
             </Button>
             <Button onClick={handleRetirada} className="w-full" disabled={retiradaMutation.isPending}>
               {retiradaMutation.isPending ? "Registrando..." : "Confirmar retirada"}
@@ -253,7 +281,7 @@ const Chaves = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Devolução — Cabo Auxiliar de Serviço + biometria */}
+      {/* Dialog Devolução — biometria */}
       <Dialog open={dialogType === "devolucao"} onOpenChange={() => setDialogType(null)}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
@@ -263,13 +291,13 @@ const Chaves = () => {
           <div className="space-y-3 mt-2">
             <div className="p-3 rounded-md bg-secondary/50 border border-border">
               <p className="text-xs text-muted-foreground font-mono">CABO AUXILIAR DE SERVIÇO</p>
-              <p className="text-sm font-semibold text-foreground mt-1">{getCaboOnDuty()}</p>
+              <div className="mt-2 h-9 rounded border border-dashed border-border bg-background/50 flex items-center justify-center">
+                <span className="text-xs font-mono text-muted-foreground/60">Aguardando biometria...</span>
+              </div>
             </div>
-            <Button className="w-full gap-2" variant="outline" disabled>
-              <Fingerprint className="w-4 h-4" /> Coletar biometria
-            </Button>
-            <Button onClick={handleDevolucao} className="w-full" disabled={devolucaoMutation.isPending}>
-              {devolucaoMutation.isPending ? "Registrando..." : "Confirmar devolução"}
+            <Button onClick={handleDevolucao} className="w-full gap-2" disabled={devolucaoMutation.isPending}>
+              <Fingerprint className="w-4 h-4" />
+              {devolucaoMutation.isPending ? "Registrando..." : "Coletar biometria e confirmar devolução"}
             </Button>
           </div>
         </DialogContent>
