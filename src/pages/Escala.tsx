@@ -129,31 +129,55 @@ const Escala = () => {
 
       <div className="rounded-lg border border-border p-4 mb-6 bg-card">
         <h3 className="text-xs font-mono text-muted-foreground mb-3 flex items-center gap-1.5">
-          <Clock className="w-3.5 h-3.5" /> VISUALIZAÇÃO 24H
+          <Clock className="w-3.5 h-3.5" /> VISUALIZAÇÃO 24H — escala visual (não preenche operações)
         </h3>
-        <div className="space-y-3">
+        <div className="space-y-4">
           {cabos.map((cabo, idx) => {
-            const active = getHourBlocks(cabo.blocos);
-            const colors = ["bg-primary/70", "bg-accent-foreground/40"];
+            const colors = [
+              "bg-gradient-to-r from-primary/80 to-primary",
+              "bg-gradient-to-r from-status-borrowed/70 to-status-borrowed",
+            ];
+            const nome = cabo.cabo_nome || `Cabo Auxiliar ${idx + 1}`;
             return (
               <div key={cabo.cabo_id}>
-                <p className="text-xs text-muted-foreground mb-1">{cabo.cabo_nome || `Cabo Auxiliar ${idx + 1}`}</p>
-                <div className="flex gap-px">
-                  {Array.from({ length: 24 }, (_, h) => (
-                    <div
-                      key={h}
-                      className={`h-6 flex-1 rounded-sm transition-colors ${active.has(h) ? colors[idx % colors.length] : "bg-secondary"}`}
-                      title={`${String(h).padStart(2, "0")}:00`}
-                    />
-                  ))}
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs font-mono text-foreground font-semibold">{nome}</p>
+                  <p className="text-[10px] font-mono text-muted-foreground">
+                    {cabo.blocos.map((b) => `${b.inicio}–${b.fim}`).join(" • ")}
+                  </p>
+                </div>
+                <div className="relative h-9 rounded-md bg-secondary/60 border border-border overflow-hidden">
+                  {/* grid horária */}
+                  <div className="absolute inset-0 flex">
+                    {Array.from({ length: 24 }, (_, h) => (
+                      <div key={h} className="flex-1 border-r border-border/40 last:border-r-0" />
+                    ))}
+                  </div>
+                  {/* blocos preenchidos */}
+                  {cabo.blocos.map((b, bi) => {
+                    const sH = parseInt(b.inicio.split(":")[0]) + parseInt(b.inicio.split(":")[1] || "0") / 60;
+                    const eH = parseInt(b.fim.split(":")[0]) + parseInt(b.fim.split(":")[1] || "0") / 60;
+                    const segs = sH < eH ? [[sH, eH]] : [[sH, 24], [0, eH]];
+                    return segs.map(([s, e], si) => (
+                      <div
+                        key={`${bi}-${si}`}
+                        className={`absolute top-0 bottom-0 ${colors[idx % colors.length]} flex items-center justify-center px-2`}
+                        style={{ left: `${(s / 24) * 100}%`, width: `${((e - s) / 24) * 100}%` }}
+                      >
+                        <span className="text-[10px] font-mono font-bold text-primary-foreground truncate">
+                          {nome}
+                        </span>
+                      </div>
+                    ));
+                  })}
                 </div>
               </div>
             );
           })}
-          <div className="flex gap-px">
+          <div className="flex">
             {Array.from({ length: 24 }, (_, h) => (
-              <span key={h} className="flex-1 text-[8px] text-center text-muted-foreground font-mono">
-                {h % 4 === 0 ? `${String(h).padStart(2, "0")}` : ""}
+              <span key={h} className="flex-1 text-[9px] text-center text-muted-foreground font-mono">
+                {h % 2 === 0 ? `${String(h).padStart(2, "0")}` : ""}
               </span>
             ))}
           </div>
