@@ -1,7 +1,7 @@
 // Local data layer — substitui completamente o Supabase usando localStorage.
 // Toda persistência fica no navegador. Dados simulados / seed inicial.
 
-const STORAGE_PREFIX = "sistolda:v4:";
+const STORAGE_PREFIX = "sistolda:v5:";
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -167,98 +167,78 @@ export interface UserAccount {
   created_at: string;
 }
 
-// ============ Seed por departamento ============
-type SeedItem = { nome: string; categoria: CategoriaChave };
+// ============ Seed ordenado conforme numeração oficial ============
+type SeedItem = { nome: string; categoria: CategoriaChave; departamento: Departamento };
 
-const ADMINISTRACAO: SeedItem[] = [
-  { nome: "Escritório do Imediato",                    categoria: "secreta" },
-  { nome: "Escritório do Comandante",                  categoria: "secreta" },
-  { nome: "CPD",                                       categoria: "secreta" },
-  { nome: "Divisão Pessoal",                           categoria: "secreta" },
-  { nome: "Suprimentos",                               categoria: "secreta" },
-  { nome: "SECOM",                                     categoria: "secreta" },
-  { nome: "Sessão de Inteligência",                    categoria: "secreta" },
-  { nome: "Sala de Estar",                             categoria: "geral" },
-  { nome: "Divisão de Serviços Gerais",                categoria: "geral" },
-  { nome: "Sala de Estar de Segundo e Terceiros",      categoria: "geral" },
-  { nome: "Sala de Estar de Sub",                      categoria: "geral" },
-  { nome: "Paiol de Material Comum",                   categoria: "geral" },
-  { nome: "Paiol de Tintas",                           categoria: "geral" },
-  { nome: "Praça d'Armas",                             categoria: "geral" },
-  { nome: "Vestiários Oficiais",                       categoria: "geral" },
-  { nome: "Dormitório do Contramestre",                categoria: "geral" },
-  { nome: "Vestiário Feminino",                        categoria: "geral" },
-  { nome: "Cisterna",                                  categoria: "geral" },
-  { nome: "Portões de Acesso à Retaguarda",            categoria: "geral" },
-  { nome: "Mestre 1",                                  categoria: "geral" },
-  { nome: "Mestre 2",                                  categoria: "geral" },
-  { nome: "Mestre 3",                                  categoria: "geral" },
-  { nome: "Mestre 4",                                  categoria: "geral" },
-  { nome: "Paiol do Cave",                             categoria: "geral" },
-  { nome: "Paiol de Geração",                          categoria: "geral" },
-  { nome: "Ford C",                                    categoria: "geral" },
-  { nome: "Viatura L200",                              categoria: "geral" },
-];
-
-const MANUTENCAO: SeedItem[] = [
-  { nome: "Divisão de Armamento",                      categoria: "secreta" },
-  { nome: "Escoteria da FAB",                          categoria: "secreta" },
-  { nome: "Departamento de Manutenção",                categoria: "secreta" },
-  { nome: "Oficina de ASV/HV",                         categoria: "geral" },
-  { nome: "Oficina de MV",                             categoria: "geral" },
-  { nome: "PPU",                                       categoria: "geral" },
-  { nome: "Divisão de Controle de Qualidade",          categoria: "geral" },
-  { nome: "Planejamento da Manutenção",                categoria: "geral" },
-  { nome: "Divisão de Apoio",                          categoria: "geral" },
-  { nome: "Divisão de Aviônica",                       categoria: "geral" },
-  { nome: "Oficina de Baterias",                       categoria: "geral" },
-  { nome: "Sessão do Conversor",                       categoria: "geral" },
-  { nome: "Sala do Compressor",                        categoria: "geral" },
-  { nome: "POG 1",                                     categoria: "geral" },
-  { nome: "POG 2",                                     categoria: "geral" },
-  { nome: "Paiol do Reboque",                          categoria: "geral" },
-];
-
-const OPERACOES: SeedItem[] = [
-  { nome: "Departamento de Operações",                 categoria: "secreta" },
-  { nome: "Sala do Briefing",                          categoria: "geral" },
-  { nome: "Paiol de Salvamento",                       categoria: "geral" },
-];
-
-const SEGURANCA: SeedItem[] = [
-  { nome: "Fator Humano",                              categoria: "secreta" },
-  { nome: "Departamento de Segurança",                 categoria: "secreta" },
-  { nome: "Paiol de Sobrevivência",                    categoria: "geral" },
-  { nome: "Oficina de Infláveis",                      categoria: "geral" },
+const CHAVES_ORDENADAS: SeedItem[] = [
+  { nome: "Escritório do Imediato",                categoria: "secreta", departamento: "administracao" },
+  { nome: "Câmara do Comandante",                  categoria: "secreta", departamento: "administracao" },
+  { nome: "Divisão de Armamento",                  categoria: "secreta", departamento: "manutencao" },
+  { nome: "Escoteria FAB",                         categoria: "secreta", departamento: "manutencao" },
+  { nome: "Departamento de Operações",             categoria: "secreta", departamento: "operacoes" },
+  { nome: "Divisão de Fator Humano",               categoria: "secreta", departamento: "seguranca" },
+  { nome: "Departamento de Segurança da Aviação",  categoria: "secreta", departamento: "seguranca" },
+  { nome: "Departamento de Manutenção",            categoria: "secreta", departamento: "manutencao" },
+  { nome: "CPD",                                   categoria: "secreta", departamento: "administracao" },
+  { nome: "Divisão de Pessoal",                    categoria: "secreta", departamento: "administracao" },
+  { nome: "Divisão de Suprimentos",                categoria: "secreta", departamento: "administracao" },
+  { nome: "SECOM",                                 categoria: "secreta", departamento: "administracao" },
+  { nome: "Seção de Inteligência",                 categoria: "secreta", departamento: "administracao" },
+  { nome: "Oficina de SV/HV",                      categoria: "geral",   departamento: "manutencao" },
+  { nome: "Oficina de MV",                         categoria: "geral",   departamento: "manutencao" },
+  { nome: "Paiol de Pronto Uso (PPU)",             categoria: "geral",   departamento: "manutencao" },
+  { nome: "Sala de Estar de CB/MN",                categoria: "geral",   departamento: "administracao" },
+  { nome: "Divisão de Serviços Gerais",            categoria: "geral",   departamento: "administracao" },
+  { nome: "Sala do Briefing",                      categoria: "geral",   departamento: "operacoes" },
+  { nome: "Sala de Estar de 2SG/3SG",              categoria: "geral",   departamento: "administracao" },
+  { nome: "Paiol de Salvamento",                   categoria: "geral",   departamento: "operacoes" },
+  { nome: "Paiol de Sobrevivência",                categoria: "geral",   departamento: "seguranca" },
+  { nome: "Oficina de Infláveis",                  categoria: "geral",   departamento: "seguranca" },
+  { nome: "Sala de Estar de SO/1SG",               categoria: "geral",   departamento: "administracao" },
+  { nome: "Divisão de Controle de Qualidade",      categoria: "geral",   departamento: "manutencao" },
+  { nome: "Divisão de Planejamento",               categoria: "geral",   departamento: "manutencao" },
+  { nome: "Paiol de Material Comum",               categoria: "geral",   departamento: "administracao" },
+  { nome: "Paiol de Tintas",                       categoria: "geral",   departamento: "administracao" },
+  { nome: "Praça D'Armas",                         categoria: "geral",   departamento: "administracao" },
+  { nome: "Vestiário dos Oficiais",                categoria: "geral",   departamento: "administracao" },
+  { nome: "Dormitório do Contramestre",            categoria: "geral",   departamento: "administracao" },
+  { nome: "Divisão de Apoio",                      categoria: "geral",   departamento: "manutencao" },
+  { nome: "Divisão de Aviônica",                   categoria: "geral",   departamento: "manutencao" },
+  { nome: "Oficina de Baterias",                   categoria: "geral",   departamento: "manutencao" },
+  { nome: "Sala do Conversor",                     categoria: "geral",   departamento: "manutencao" },
+  { nome: "Vestiário Feminino",                    categoria: "geral",   departamento: "administracao" },
+  { nome: "Cisterna",                              categoria: "geral",   departamento: "administracao" },
+  { nome: "Portão de Acesso (Retaguarda)",         categoria: "geral",   departamento: "administracao" },
+  { nome: "Mestre 1",                              categoria: "geral",   departamento: "administracao" },
+  { nome: "Paiol do Mestre 2",                     categoria: "geral",   departamento: "administracao" },
+  { nome: "Paiol do Mestre 3",                     categoria: "geral",   departamento: "administracao" },
+  { nome: "Paiol do Mestre 4",                     categoria: "geral",   departamento: "administracao" },
+  { nome: "Sala do Compressor",                    categoria: "geral",   departamento: "manutencao" },
+  { nome: "POG1",                                  categoria: "geral",   departamento: "manutencao" },
+  { nome: "POG2",                                  categoria: "geral",   departamento: "manutencao" },
+  { nome: "Paiol do CAV",                          categoria: "geral",   departamento: "administracao" },
+  { nome: "Viatura Ford Ka",                       categoria: "geral",   departamento: "administracao" },
+  { nome: "Viatura L200",                          categoria: "geral",   departamento: "administracao" },
+  { nome: "Paiol do Reboque",                      categoria: "geral",   departamento: "manutencao" },
+  { nome: "Paiol de Refrigeração",                 categoria: "geral",   departamento: "manutencao" },
+  { nome: "Vago",                                  categoria: "geral",   departamento: "administracao" },
 ];
 
 function seedChaves(): Chave[] {
-  const grupos: { dep: Departamento; itens: SeedItem[] }[] = [
-    { dep: "administracao", itens: ADMINISTRACAO },
-    { dep: "manutencao",    itens: MANUTENCAO },
-    { dep: "operacoes",     itens: OPERACOES },
-    { dep: "seguranca",     itens: SEGURANCA },
-  ];
-
-  const out: Chave[] = [];
-  let n = 1;
-  for (const g of grupos) {
-    for (const item of g.itens) {
-      out.push({
-        id: `chave-${n}`,
-        numero: n,
-        nome: item.nome,
-        departamento: g.dep,
-        setor: item.nome,
-        codigo: `CH-${String(n).padStart(2, "0")}`,
-        status: "disponivel",
-        militar_responsavel: null,
-        categoria: item.categoria,
-      });
-      n++;
-    }
-  }
-  return out;
+  return CHAVES_ORDENADAS.map((item, i) => {
+    const n = i + 1;
+    return {
+      id: `chave-${n}`,
+      numero: n,
+      nome: item.nome,
+      departamento: item.departamento,
+      setor: item.nome,
+      codigo: `CH-${String(n).padStart(2, "0")}`,
+      status: "disponivel" as const,
+      militar_responsavel: null,
+      categoria: item.categoria,
+    };
+  });
 }
 
 function seedViaturas(): Viatura[] {
