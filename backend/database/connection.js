@@ -79,10 +79,8 @@ function seed() {
     );
     const tx = db.transaction(() => {
       let n = 1;
-      for (const grupo of CHAVES_POR_DEPARTAMENTO) {
-        for (const [nome, categoria] of grupo.itens) {
-          insert.run(n++, nome, categoria, grupo.dep, nome);
-        }
+      for (const [nome, categoria, dep] of CHAVES_ORDENADAS) {
+        insert.run(n++, nome, categoria, dep, nome);
       }
     });
     tx();
