@@ -374,10 +374,10 @@ export function subscribeChanges(cb: (key: string) => void): () => void {
 
 // ============ Permissões por perfil ============
 export const ROLE_ACCESS: Record<UserRole, string[]> = {
-  admin:     ["chaves", "viaturas", "visitantes", "material", "pdv", "escala", "usuarios"],
-  operacoes: ["pdv"],
-  segorg:    ["chaves"],
-  servico:   ["chaves", "viaturas", "visitantes", "material"],
+  admin:     ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios"],
+  operacoes: ["pdv", "dashboard"],
+  segorg:    ["chaves", "dashboard"],
+  servico:   ["chaves", "viaturas", "visitantes", "material", "dashboard"],
 };
 
 export function canAccess(role: UserRole | undefined, route: string): boolean {
