@@ -9,32 +9,66 @@ const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
-const CHAVES_SECRETAS = [
-  "Escritório do Imediato",
-  "Câmara do Comandante",
-  "Divisão de Armamento",
-  "Escoteria FAB",
-  "Departamento de Operações",
-  "Divisão de Fator Humano",
-  "Departamento de Segurança da Aviação",
-  "Departamento de Manutenção",
-  "CPD",
-  "Divisão de Pessoal",
-  "Divisão de Suprimentos",
-  "SECOM",
-  "(Secreta) Seção de Inteligência",
-];
-
-const CHAVES_GERAIS = [
-  "Oficina de SV/HV","Oficina de MV","Paiol de Pronto Uso (PPU)","Sala de Estar de CB/MN",
-  "Divisão de Serviços Gerais","Sala do Briefing","Sala de Estar de 2SG/3SG","Paiol de Salvamento",
-  "Paiol de Sobrevivência","Oficina de Infláveis","Sala de Estar de SO/1SG","Divisão de Controle de Qualidade",
-  "Divisão de Planejamento","Paiol de Material Comum","Paiol de Tintas","Praça D'Armas",
-  "Vestiário dos Oficiais","Dormitório do Contramestre","Divisão de Apoio","Divisão de Aviônica",
-  "Oficina de Baterias","Sala do Conversor","Vestiário Feminino","Cisterna",
-  "Portão de Acesso (Retaguarda)","Mestre 1","Paiol do Mestre 2","Paiol do Mestre 3",
-  "Paiol do Mestre 4","Sala do Compressor","POG1","POG2","Paiol do CAV",
-  "Viatura Ford Ka","Viatura L200","Paiol do Reboque","Paiol de Refrigeração","Vago",
+// Chaves organizadas por departamento (administração, manutenção, operações, segurança)
+const CHAVES_POR_DEPARTAMENTO = [
+  { dep: "administracao", itens: [
+    ["Escritório do Imediato", "secreta"],
+    ["Escritório do Comandante", "secreta"],
+    ["CPD", "secreta"],
+    ["Divisão Pessoal", "secreta"],
+    ["Suprimentos", "secreta"],
+    ["SECOM", "secreta"],
+    ["Sessão de Inteligência", "secreta"],
+    ["Sala de Estar", "geral"],
+    ["Divisão de Serviços Gerais", "geral"],
+    ["Sala de Estar de Segundo e Terceiros", "geral"],
+    ["Sala de Estar de Sub", "geral"],
+    ["Paiol de Material Comum", "geral"],
+    ["Paiol de Tintas", "geral"],
+    ["Praça d'Armas", "geral"],
+    ["Vestiários Oficiais", "geral"],
+    ["Dormitório do Contramestre", "geral"],
+    ["Vestiário Feminino", "geral"],
+    ["Cisterna", "geral"],
+    ["Portões de Acesso à Retaguarda", "geral"],
+    ["Mestre 1", "geral"],
+    ["Mestre 2", "geral"],
+    ["Mestre 3", "geral"],
+    ["Mestre 4", "geral"],
+    ["Paiol do Cave", "geral"],
+    ["Paiol de Geração", "geral"],
+    ["Ford C", "geral"],
+    ["Viatura L200", "geral"],
+  ]},
+  { dep: "manutencao", itens: [
+    ["Divisão de Armamento", "secreta"],
+    ["Escoteria da FAB", "secreta"],
+    ["Departamento de Manutenção", "secreta"],
+    ["Oficina de ASV/HV", "geral"],
+    ["Oficina de MV", "geral"],
+    ["PPU", "geral"],
+    ["Divisão de Controle de Qualidade", "geral"],
+    ["Planejamento da Manutenção", "geral"],
+    ["Divisão de Apoio", "geral"],
+    ["Divisão de Aviônica", "geral"],
+    ["Oficina de Baterias", "geral"],
+    ["Sessão do Conversor", "geral"],
+    ["Sala do Compressor", "geral"],
+    ["POG 1", "geral"],
+    ["POG 2", "geral"],
+    ["Paiol do Reboque", "geral"],
+  ]},
+  { dep: "operacoes", itens: [
+    ["Departamento de Operações", "secreta"],
+    ["Sala do Briefing", "geral"],
+    ["Paiol de Salvamento", "geral"],
+  ]},
+  { dep: "seguranca", itens: [
+    ["Fator Humano", "secreta"],
+    ["Departamento de Segurança", "secreta"],
+    ["Paiol de Sobrevivência", "geral"],
+    ["Oficina de Infláveis", "geral"],
+  ]},
 ];
 
 function initDb() {
@@ -47,11 +81,16 @@ function initDb() {
 function seed() {
   const chaveCount = db.prepare("SELECT COUNT(*) AS c FROM chaves").get().c;
   if (chaveCount === 0) {
-    const insert = db.prepare("INSERT INTO chaves (numero, nome, categoria) VALUES (?,?,?)");
+    const insert = db.prepare(
+      "INSERT INTO chaves (numero, nome, categoria, departamento, setor) VALUES (?,?,?,?,?)"
+    );
     const tx = db.transaction(() => {
       let n = 1;
-      for (const nome of CHAVES_SECRETAS) insert.run(n++, nome, "secreta");
-      for (const nome of CHAVES_GERAIS)   insert.run(n++, nome, "geral");
+      for (const grupo of CHAVES_POR_DEPARTAMENTO) {
+        for (const [nome, categoria] of grupo.itens) {
+          insert.run(n++, nome, categoria, grupo.dep, nome);
+        }
+      }
     });
     tx();
   }
