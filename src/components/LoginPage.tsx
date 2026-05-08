@@ -31,7 +31,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src={logoHU41} alt="HU-41" className="w-20 h-20 mx-auto mb-4 object-contain" />
+          <img src={logoHU41} alt="SISTOLDA — Esquadrão HU-41" className="w-32 h-32 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold text-foreground tracking-wide">SISTOLDA</h1>
           <p className="text-xs font-mono text-muted-foreground tracking-widest mt-1">CENTRO DE PROCESSAMENTO DE DADOS</p>
         </div>
