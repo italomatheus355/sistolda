@@ -63,6 +63,7 @@ function AppRoutes() {
         <Route path="/visitantes" element={<Guard route="visitantes"><Visitantes /></Guard>} />
         <Route path="/material"   element={<Guard route="material"><MaterialPage /></Guard>} />
         <Route path="/pdv"        element={<Guard route="pdv"><Pdv /></Guard>} />
+        <Route path="/dashboard"  element={<Guard route="dashboard"><Dashboard /></Guard>} />
         <Route path="/escala"     element={<Guard route="escala"><Escala /></Guard>} />
         <Route path="/usuarios"   element={<Guard route="usuarios"><Usuarios /></Guard>} />
         <Route path="*" element={<NotFound />} />
