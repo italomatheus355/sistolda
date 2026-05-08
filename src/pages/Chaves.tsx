@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Key, History, Search, Fingerprint, RotateCcw, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localDb, getCaboOnDuty, Chave, HistoricoChave, uid, DEPARTAMENTOS, Departamento } from "@/lib/localDb";
+import { localDb, getCaboOnDuty, Chave, HistoricoChave, uid } from "@/lib/localDb";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
