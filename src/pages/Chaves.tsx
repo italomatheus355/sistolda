@@ -131,23 +131,24 @@ const Chaves = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="administracao">
-        <TabsList className="bg-secondary mb-6 flex-wrap h-auto">
-          {DEPARTAMENTOS.map((d) => (
-            <TabsTrigger key={d.id} value={d.id} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              {d.label}
-            </TabsTrigger>
-          ))}
+      <Tabs defaultValue="secretas">
+        <TabsList className="bg-secondary mb-6">
+          <TabsTrigger value="secretas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            Chaves Secretas
+          </TabsTrigger>
+          <TabsTrigger value="gerais" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            Chaves Gerais
+          </TabsTrigger>
           <TabsTrigger value="historico" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <History className="w-3.5 h-3.5 mr-1.5" /> Histórico
           </TabsTrigger>
         </TabsList>
 
-        {DEPARTAMENTOS.map((d) => {
-          const list = filtered.filter((c) => c.departamento === d.id);
-          const temSecreta = list.some((c) => c.categoria === "secreta");
+        {(["secretas", "gerais"] as const).map((cat) => {
+          const list = filtered.filter((c) => c.categoria === (cat === "secretas" ? "secreta" : "geral"));
+          const isSecreta = cat === "secretas";
           return (
-            <TabsContent key={d.id} value={d.id}>
+            <TabsContent key={cat} value={cat}>
               <div className="flex items-center justify-between mb-4 gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -161,7 +162,7 @@ const Chaves = () => {
               {isLoading ? (
                 <div className="text-center text-muted-foreground py-12 font-mono text-sm">Carregando chaves...</div>
               ) : (
-                <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 ${temSecreta ? "p-4 rounded-lg border border-status-borrowed/30 bg-status-borrowed/5" : ""}`}>
+                <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 ${isSecreta ? "p-4 rounded-lg border border-status-borrowed/30 bg-status-borrowed/5" : ""}`}>
                   {list.map((chave) => (
                     <button
                       key={chave.id}
@@ -177,7 +178,7 @@ const Chaves = () => {
                         <span className="text-base font-mono font-bold text-foreground/90 leading-none">Nº {String(chave.numero).padStart(2, "0")}</span>
                       </div>
                       <h3 className="text-sm font-semibold text-foreground truncate">{chave.nome}</h3>
-                      {chave.categoria === "secreta" && (
+                      {isSecreta && (
                         <p className="text-[9px] text-status-borrowed font-mono tracking-widest mt-1">SECRETA</p>
                       )}
                       {chave.militar_responsavel && (
