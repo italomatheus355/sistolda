@@ -131,29 +131,37 @@ const Chaves = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="secretas">
-        <TabsList className="bg-secondary mb-6">
-          <TabsTrigger value="secretas" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Chaves Secretas</TabsTrigger>
-          <TabsTrigger value="gerais" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Chaves Gerais</TabsTrigger>
+      <Tabs defaultValue="administracao">
+        <TabsList className="bg-secondary mb-6 flex-wrap h-auto">
+          {DEPARTAMENTOS.map((d) => (
+            <TabsTrigger key={d.id} value={d.id} className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              {d.label}
+            </TabsTrigger>
+          ))}
           <TabsTrigger value="historico" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <History className="w-3.5 h-3.5 mr-1.5" /> Histórico
           </TabsTrigger>
         </TabsList>
 
-        {(["secretas", "gerais"] as const).map((tab) => {
-          const cat = tab === "secretas" ? "secreta" : "geral";
-          const list = filtered.filter((c) => c.categoria === cat);
+        {DEPARTAMENTOS.map((d) => {
+          const list = filtered.filter((c) => c.departamento === d.id);
+          const temSecreta = list.some((c) => c.categoria === "secreta");
           return (
-            <TabsContent key={tab} value={tab}>
-              <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="Buscar chave ou número..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-secondary border-border" />
+            <TabsContent key={d.id} value={d.id}>
+              <div className="flex items-center justify-between mb-4 gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input placeholder="Buscar chave ou número..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10 bg-secondary border-border" />
+                </div>
+                <span className="text-xs font-mono text-muted-foreground whitespace-nowrap">
+                  {list.length} CHAVES
+                </span>
               </div>
 
               {isLoading ? (
                 <div className="text-center text-muted-foreground py-12 font-mono text-sm">Carregando chaves...</div>
               ) : (
-                <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 ${tab === "secretas" ? "p-4 rounded-lg border border-status-borrowed/30 bg-status-borrowed/5" : ""}`}>
+                <div className={`grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 ${temSecreta ? "p-4 rounded-lg border border-status-borrowed/30 bg-status-borrowed/5" : ""}`}>
                   {list.map((chave) => (
                     <button
                       key={chave.id}
@@ -169,6 +177,9 @@ const Chaves = () => {
                         <span className="text-base font-mono font-bold text-foreground/90 leading-none">Nº {String(chave.numero).padStart(2, "0")}</span>
                       </div>
                       <h3 className="text-sm font-semibold text-foreground truncate">{chave.nome}</h3>
+                      {chave.categoria === "secreta" && (
+                        <p className="text-[9px] text-status-borrowed font-mono tracking-widest mt-1">SECRETA</p>
+                      )}
                       {chave.militar_responsavel && (
                         <p className="text-[10px] text-status-borrowed mt-2 font-mono truncate">{chave.militar_responsavel}</p>
                       )}
