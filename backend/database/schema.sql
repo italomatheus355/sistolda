@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS chaves (
   numero INTEGER UNIQUE NOT NULL,
   nome TEXT NOT NULL,
   categoria TEXT NOT NULL CHECK (categoria IN ('secreta','geral')),
+  departamento TEXT NOT NULL CHECK (departamento IN ('administracao','manutencao','operacoes','seguranca')),
+  setor TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'disponivel' CHECK (status IN ('disponivel','emprestada')),
   militar_responsavel TEXT
 );
