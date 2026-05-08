@@ -9,66 +9,59 @@ const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
 db.pragma("foreign_keys = ON");
 
-// Chaves organizadas por departamento (administração, manutenção, operações, segurança)
-const CHAVES_POR_DEPARTAMENTO = [
-  { dep: "administracao", itens: [
-    ["Escritório do Imediato", "secreta"],
-    ["Escritório do Comandante", "secreta"],
-    ["CPD", "secreta"],
-    ["Divisão Pessoal", "secreta"],
-    ["Suprimentos", "secreta"],
-    ["SECOM", "secreta"],
-    ["Sessão de Inteligência", "secreta"],
-    ["Sala de Estar", "geral"],
-    ["Divisão de Serviços Gerais", "geral"],
-    ["Sala de Estar de Segundo e Terceiros", "geral"],
-    ["Sala de Estar de Sub", "geral"],
-    ["Paiol de Material Comum", "geral"],
-    ["Paiol de Tintas", "geral"],
-    ["Praça d'Armas", "geral"],
-    ["Vestiários Oficiais", "geral"],
-    ["Dormitório do Contramestre", "geral"],
-    ["Vestiário Feminino", "geral"],
-    ["Cisterna", "geral"],
-    ["Portões de Acesso à Retaguarda", "geral"],
-    ["Mestre 1", "geral"],
-    ["Mestre 2", "geral"],
-    ["Mestre 3", "geral"],
-    ["Mestre 4", "geral"],
-    ["Paiol do Cave", "geral"],
-    ["Paiol de Geração", "geral"],
-    ["Ford C", "geral"],
-    ["Viatura L200", "geral"],
-  ]},
-  { dep: "manutencao", itens: [
-    ["Divisão de Armamento", "secreta"],
-    ["Escoteria da FAB", "secreta"],
-    ["Departamento de Manutenção", "secreta"],
-    ["Oficina de ASV/HV", "geral"],
-    ["Oficina de MV", "geral"],
-    ["PPU", "geral"],
-    ["Divisão de Controle de Qualidade", "geral"],
-    ["Planejamento da Manutenção", "geral"],
-    ["Divisão de Apoio", "geral"],
-    ["Divisão de Aviônica", "geral"],
-    ["Oficina de Baterias", "geral"],
-    ["Sessão do Conversor", "geral"],
-    ["Sala do Compressor", "geral"],
-    ["POG 1", "geral"],
-    ["POG 2", "geral"],
-    ["Paiol do Reboque", "geral"],
-  ]},
-  { dep: "operacoes", itens: [
-    ["Departamento de Operações", "secreta"],
-    ["Sala do Briefing", "geral"],
-    ["Paiol de Salvamento", "geral"],
-  ]},
-  { dep: "seguranca", itens: [
-    ["Fator Humano", "secreta"],
-    ["Departamento de Segurança", "secreta"],
-    ["Paiol de Sobrevivência", "geral"],
-    ["Oficina de Infláveis", "geral"],
-  ]},
+// Chaves em ordem oficial (numeração 1..51)
+const CHAVES_ORDENADAS = [
+  ["Escritório do Imediato",               "secreta", "administracao"],
+  ["Câmara do Comandante",                 "secreta", "administracao"],
+  ["Divisão de Armamento",                 "secreta", "manutencao"],
+  ["Escoteria FAB",                        "secreta", "manutencao"],
+  ["Departamento de Operações",            "secreta", "operacoes"],
+  ["Divisão de Fator Humano",              "secreta", "seguranca"],
+  ["Departamento de Segurança da Aviação", "secreta", "seguranca"],
+  ["Departamento de Manutenção",           "secreta", "manutencao"],
+  ["CPD",                                  "secreta", "administracao"],
+  ["Divisão de Pessoal",                   "secreta", "administracao"],
+  ["Divisão de Suprimentos",               "secreta", "administracao"],
+  ["SECOM",                                "secreta", "administracao"],
+  ["Seção de Inteligência",                "secreta", "administracao"],
+  ["Oficina de SV/HV",                     "geral",   "manutencao"],
+  ["Oficina de MV",                        "geral",   "manutencao"],
+  ["Paiol de Pronto Uso (PPU)",            "geral",   "manutencao"],
+  ["Sala de Estar de CB/MN",               "geral",   "administracao"],
+  ["Divisão de Serviços Gerais",           "geral",   "administracao"],
+  ["Sala do Briefing",                     "geral",   "operacoes"],
+  ["Sala de Estar de 2SG/3SG",             "geral",   "administracao"],
+  ["Paiol de Salvamento",                  "geral",   "operacoes"],
+  ["Paiol de Sobrevivência",               "geral",   "seguranca"],
+  ["Oficina de Infláveis",                 "geral",   "seguranca"],
+  ["Sala de Estar de SO/1SG",              "geral",   "administracao"],
+  ["Divisão de Controle de Qualidade",     "geral",   "manutencao"],
+  ["Divisão de Planejamento",              "geral",   "manutencao"],
+  ["Paiol de Material Comum",              "geral",   "administracao"],
+  ["Paiol de Tintas",                      "geral",   "administracao"],
+  ["Praça D'Armas",                        "geral",   "administracao"],
+  ["Vestiário dos Oficiais",               "geral",   "administracao"],
+  ["Dormitório do Contramestre",           "geral",   "administracao"],
+  ["Divisão de Apoio",                     "geral",   "manutencao"],
+  ["Divisão de Aviônica",                  "geral",   "manutencao"],
+  ["Oficina de Baterias",                  "geral",   "manutencao"],
+  ["Sala do Conversor",                    "geral",   "manutencao"],
+  ["Vestiário Feminino",                   "geral",   "administracao"],
+  ["Cisterna",                             "geral",   "administracao"],
+  ["Portão de Acesso (Retaguarda)",        "geral",   "administracao"],
+  ["Mestre 1",                             "geral",   "administracao"],
+  ["Paiol do Mestre 2",                    "geral",   "administracao"],
+  ["Paiol do Mestre 3",                    "geral",   "administracao"],
+  ["Paiol do Mestre 4",                    "geral",   "administracao"],
+  ["Sala do Compressor",                   "geral",   "manutencao"],
+  ["POG1",                                 "geral",   "manutencao"],
+  ["POG2",                                 "geral",   "manutencao"],
+  ["Paiol do CAV",                         "geral",   "administracao"],
+  ["Viatura Ford Ka",                      "geral",   "administracao"],
+  ["Viatura L200",                         "geral",   "administracao"],
+  ["Paiol do Reboque",                     "geral",   "manutencao"],
+  ["Paiol de Refrigeração",                "geral",   "manutencao"],
+  ["Vago",                                 "geral",   "administracao"],
 ];
 
 function initDb() {
@@ -86,10 +79,8 @@ function seed() {
     );
     const tx = db.transaction(() => {
       let n = 1;
-      for (const grupo of CHAVES_POR_DEPARTAMENTO) {
-        for (const [nome, categoria] of grupo.itens) {
-          insert.run(n++, nome, categoria, grupo.dep, nome);
-        }
+      for (const [nome, categoria, dep] of CHAVES_ORDENADAS) {
+        insert.run(n++, nome, categoria, dep, nome);
       }
     });
     tx();
