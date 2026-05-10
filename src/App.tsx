@@ -14,6 +14,7 @@ import Escala from "./pages/Escala";
 import Usuarios from "./pages/Usuarios";
 import Pdv from "./pages/Pdv";
 import Dashboard from "./pages/Dashboard";
+import Biometria from "./pages/Biometria";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -66,6 +67,7 @@ function AppRoutes() {
         <Route path="/dashboard"  element={<Guard route="dashboard"><Dashboard /></Guard>} />
         <Route path="/escala"     element={<Guard route="escala"><Escala /></Guard>} />
         <Route path="/usuarios"   element={<Guard route="usuarios"><Usuarios /></Guard>} />
+        <Route path="/biometria"  element={<Guard route="biometria"><Biometria /></Guard>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
