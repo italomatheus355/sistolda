@@ -329,6 +329,31 @@ export const localDb = {
   },
 };
 
+// ============ Identificação por NIP via biometria ============
+export interface BiometriaRecord {
+  id: string;
+  identificacao: string;
+  nip: string;
+  template: string | null;
+  leituras: number;
+  status: "ativa" | "inativa";
+  data_cadastro: string;
+}
+
+export function buscarBiometriaPorNip(nip: string): BiometriaRecord | null {
+  const t = (nip || "").trim();
+  if (!t) return null;
+  const all = localDb.list<BiometriaRecord>("biometrias");
+  return all.find((b) => b.nip === t && b.status === "ativa") || null;
+}
+
+export function identificarMilitarPorNip(nip: string): string {
+  const b = buscarBiometriaPorNip(nip);
+  if (b) return b.identificacao;
+  const t = (nip || "").trim();
+  return t ? `Militar NIP ${t}` : "";
+}
+
 // ============ Cabo on duty ============
 export function getCaboOnDuty(): string {
   const today = new Date().toISOString().split("T")[0];
