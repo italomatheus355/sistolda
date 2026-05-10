@@ -6,6 +6,7 @@ const visitantes = require("../controllers/visitantesController");
 const materiais  = require("../controllers/materiaisController");
 const pdv        = require("../controllers/pdvController");
 const militares  = require("../controllers/militaresController");
+const biometrias = require("../controllers/biometriasController");
 
 // Chaves
 router.get("/chaves", chaves.list);
@@ -37,5 +38,12 @@ router.get("/militares", militares.list);
 router.get("/militares/:nip", militares.getByNip);
 router.post("/militares", militares.create);
 router.put("/militares/:nip/biometria", militares.setBiometria);
+
+// Biometrias
+router.get("/biometrias", biometrias.list);
+router.get("/biometrias/nip/:nip", biometrias.getByNip);
+router.post("/biometrias", biometrias.create);
+router.put("/biometrias/:id/status", biometrias.setStatus);
+router.delete("/biometrias/:id", biometrias.remove);
 
 module.exports = router;

@@ -92,6 +92,16 @@ CREATE TABLE IF NOT EXISTS materiais (
   cabo_registro TEXT
 );
 
+CREATE TABLE IF NOT EXISTS biometrias (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  identificacao TEXT NOT NULL,
+  nip TEXT NOT NULL,
+  template TEXT,
+  leituras INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'ativa' CHECK (status IN ('ativa','inativa')),
+  data_cadastro TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS pdv (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   data TEXT UNIQUE NOT NULL,
