@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Key, History, Search, Fingerprint, RotateCcw, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localDb, getCaboOnDuty, Chave, HistoricoChave, uid } from "@/lib/localDb";
+import { localDb, getCaboOnDuty, Chave, HistoricoChave, uid, identificarMilitarPorNip } from "@/lib/localDb";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,13 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-
-// Identificação simulada (futura biometria/NIP)
-function identificarMilitarPorNip(nip: string): string {
-  const t = nip.trim();
-  if (!t) return "";
-  return `Militar NIP ${t}`;
-}
 
 const Chaves = () => {
   const queryClient = useQueryClient();

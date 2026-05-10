@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Package, Plus, Search, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localDb, getCaboOnDuty, RegistroMaterial, uid } from "@/lib/localDb";
+import { localDb, getCaboOnDuty, RegistroMaterial, uid, buscarBiometriaPorNip } from "@/lib/localDb";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,7 +137,24 @@ const MaterialPage = () => {
             </div>
             <div>
               <label className="text-xs font-mono text-muted-foreground mb-1.5 block">NIP</label>
-              <Input value={form.nip} onChange={(e) => setForm({ ...form, nip: e.target.value })} className="bg-secondary border-border" />
+              <Input
+                value={form.nip}
+                onChange={(e) => {
+                  const nip = e.target.value;
+                  const bio = buscarBiometriaPorNip(nip);
+                  setForm((f) => ({
+                    ...f,
+                    nip,
+                    militar: bio ? bio.identificacao : f.militar,
+                  }));
+                }}
+                className="bg-secondary border-border"
+              />
+              {buscarBiometriaPorNip(form.nip) && (
+                <p className="text-[10px] font-mono text-status-available mt-1">
+                  ✓ BIOMETRIA RECONHECIDA: {buscarBiometriaPorNip(form.nip)?.identificacao}
+                </p>
+              )}
             </div>
             <div>
               <label className="text-xs font-mono text-muted-foreground mb-1.5 block">DESTINO DO MATERIAL</label>

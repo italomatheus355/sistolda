@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Car, History, Search, Fingerprint, RotateCcw, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localDb, getCaboOnDuty, Viatura, HistoricoViatura, uid } from "@/lib/localDb";
+import { localDb, getCaboOnDuty, Viatura, HistoricoViatura, uid, identificarMilitarPorNip } from "@/lib/localDb";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,7 @@ const statusBorder = {
   manutencao: "border-status-maintenance/30 hover:border-status-maintenance/60",
 } as const;
 
-function identificarPorNip(nip: string): string {
-  const t = nip.trim();
-  if (!t) return "";
-  return `Militar NIP ${t}`;
-}
+const identificarPorNip = identificarMilitarPorNip;
 
 const Viaturas = () => {
   const queryClient = useQueryClient();
