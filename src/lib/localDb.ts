@@ -273,7 +273,8 @@ type TableName =
   | "registros_materiais"
   | "escala_cabos"
   | "pdv"
-  | "users";
+  | "users"
+  | "biometrias";
 
 const seeders: Record<TableName, () => any[]> = {
   chaves: seedChaves,
@@ -285,6 +286,7 @@ const seeders: Record<TableName, () => any[]> = {
   escala_cabos: seedEscala,
   pdv: () => [],
   users: seedUsers,
+  biometrias: () => [],
 };
 
 function getAll<T>(table: TableName): T[] {
@@ -354,7 +356,7 @@ export function subscribeChanges(cb: (key: string) => void): () => void {
 
 // ============ Permissões por perfil ============
 export const ROLE_ACCESS: Record<UserRole, string[]> = {
-  admin:     ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios"],
+  admin:     ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "biometria"],
   operacoes: ["pdv", "dashboard"],
   segorg:    ["chaves", "dashboard"],
   servico:   ["chaves", "viaturas", "visitantes", "material", "dashboard"],
