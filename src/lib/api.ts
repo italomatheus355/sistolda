@@ -154,7 +154,10 @@ export const SYNC_OPTIONS = {
 // Identificação por NIP via tabela militares (backend SQLite)
 export async function nomeDoMilitarPorNip(nip: string): Promise<string> {
   const m = await api.getMilitarByNip(nip);
-  if (m?.nome) return m.nome;
+  if (m?.nome) {
+    const posto = (m.posto_graduacao || "").trim();
+    return posto ? `${posto} ${m.nome}` : m.nome;
+  }
   const t = onlyDigits(nip);
   return t ? `Militar NIP ${t}` : "";
 }
