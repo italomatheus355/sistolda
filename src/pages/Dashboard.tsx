@@ -57,12 +57,10 @@ function ChartCard({ title, children, className = "" }: any) {
 // ============ CHAVES ============
 function DashboardChaves() {
   const { data: chaves = [] } = useQuery({
-    queryKey: ["chaves"], queryFn: async () => localDb.list<Chave>("chaves"),
+    queryKey: ["chaves"], queryFn: api.listChaves, ...SYNC_OPTIONS,
   });
   const { data: historico = [] } = useQuery({
-    queryKey: ["historico_chaves"],
-    queryFn: async () => localDb.list<HistoricoChave>("historico_chaves")
-      .sort((a, b) => b.data_retirada.localeCompare(a.data_retirada)),
+    queryKey: ["historico_chaves"], queryFn: api.historicoChaves, ...SYNC_OPTIONS,
   });
 
   const total = chaves.length;
@@ -153,12 +151,10 @@ function DashboardChaves() {
 // ============ VIATURAS ============
 function DashboardViaturas() {
   const { data: viaturas = [] } = useQuery({
-    queryKey: ["viaturas"], queryFn: async () => localDb.list<Viatura>("viaturas"),
+    queryKey: ["viaturas"], queryFn: api.listViaturas, ...SYNC_OPTIONS,
   });
   const { data: historico = [] } = useQuery({
-    queryKey: ["historico_viaturas"],
-    queryFn: async () => localDb.list<HistoricoViatura>("historico_viaturas")
-      .sort((a, b) => b.data_saida.localeCompare(a.data_saida)),
+    queryKey: ["historico_viaturas"], queryFn: api.historicoViaturas, ...SYNC_OPTIONS,
   });
 
   const disponivel = viaturas.filter((v) => v.status === "disponivel").length;
