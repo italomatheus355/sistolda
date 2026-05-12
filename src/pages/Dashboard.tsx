@@ -241,9 +241,7 @@ function DashboardViaturas() {
 // ============ MATERIAIS ============
 function DashboardMateriais() {
   const { data: registros = [] } = useQuery({
-    queryKey: ["registros_materiais"],
-    queryFn: async () => localDb.list<RegistroMaterial>("registros_materiais")
-      .sort((a, b) => b.data_registro.localeCompare(a.data_registro)),
+    queryKey: ["registros_materiais"], queryFn: api.listMateriais, ...SYNC_OPTIONS,
   });
 
   const total = registros.length;
@@ -333,9 +331,7 @@ function DashboardMateriais() {
 // ============ VISITANTES ============
 function DashboardVisitantes() {
   const { data: visitantes = [] } = useQuery({
-    queryKey: ["visitantes"],
-    queryFn: async () => localDb.list<Visitante>("visitantes")
-      .sort((a, b) => b.hora_entrada.localeCompare(a.hora_entrada)),
+    queryKey: ["visitantes"], queryFn: api.listVisitantes, ...SYNC_OPTIONS,
   });
 
   const hoje = new Date().toISOString().slice(0, 10);
