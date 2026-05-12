@@ -11,10 +11,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  localDb, Chave, HistoricoChave, Viatura, HistoricoViatura,
-  Visitante, RegistroMaterial, DEPARTAMENTOS,
-} from "@/lib/localDb";
+import { api, ApiChave, ApiHistoricoChave, ApiViatura, ApiHistoricoViatura, ApiVisitante, ApiMaterial, SYNC_OPTIONS } from "@/lib/api";
+import { DEPARTAMENTOS } from "@/lib/localDb";
 
 const COLORS = {
   green: "hsl(var(--status-available))",
