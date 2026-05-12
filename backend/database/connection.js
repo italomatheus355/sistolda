@@ -92,7 +92,8 @@ function seed() {
     const insert = db.prepare("INSERT INTO viaturas (prefixo, modelo, km_atual) VALUES (?,?,?)");
     insert.run("Ford Ka", "Ford Ka", 45000);
     insert.run("L200",    "Mitsubishi L200", 78000);
-  }
+  seedMilitares(db);
+}
 
   const userCount = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
   if (userCount === 0) {
