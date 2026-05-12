@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Users, Plus, LogOut, Eye, History } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localDb, getCaboOnDuty, Visitante, uid } from "@/lib/localDb";
+import { api, ApiVisitante, SYNC_OPTIONS } from "@/lib/api";
+import { getCaboOnDuty } from "@/lib/localDb";
+import { showOperationConfirm } from "@/components/OperationConfirm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,46 +15,41 @@ import { toast } from "@/hooks/use-toast";
 const Visitantes = () => {
   const queryClient = useQueryClient();
   const [showCadastro, setShowCadastro] = useState(false);
-  const [detalhes, setDetalhes] = useState<Visitante | null>(null);
+  const [detalhes, setDetalhes] = useState<ApiVisitante | null>(null);
   const [filtroData, setFiltroData] = useState("");
   const [form, setForm] = useState({ nome: "", documento: "", localDestino: "", observacoes: "" });
 
   const { data: visitantes = [], isLoading } = useQuery({
-    queryKey: ["visitantes"],
-    queryFn: async () =>
-      localDb.list<Visitante>("visitantes").sort((a, b) => b.hora_entrada.localeCompare(a.hora_entrada)),
+    queryKey: ["visitantes"], queryFn: api.listVisitantes, ...SYNC_OPTIONS,
   });
 
   const cadastroMutation = useMutation({
     mutationFn: async (cabo: string) => {
-      localDb.insert<Visitante>("visitantes", {
-        id: uid(),
+      await api.createVisitante({
         nome: form.nome,
         documento: form.documento,
         militar_responsavel: "",
         local_destino: form.localDestino,
-        hora_entrada: new Date().toISOString(),
-        hora_saida: null,
         observacoes: form.observacoes || null,
         cabo_registro: cabo,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["visitantes"] });
-      toast({ title: "Visitante registrado", description: `${form.nome} cadastrado.` });
+      showOperationConfirm({ nome: form.nome, acao: "entrou no quartel", variant: "visitante" });
       setForm({ nome: "", documento: "", localDestino: "", observacoes: "" });
       setShowCadastro(false);
     },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const saidaMutation = useMutation({
-    mutationFn: async (id: string) => {
-      localDb.update<Visitante>("visitantes", id, { hora_saida: new Date().toISOString() });
-    },
-    onSuccess: () => {
+    mutationFn: async (v: ApiVisitante) => { await api.saidaVisitante(v.id); return v; },
+    onSuccess: (v) => {
       queryClient.invalidateQueries({ queryKey: ["visitantes"] });
-      toast({ title: "Saída registrada" });
+      showOperationConfirm({ nome: v.nome, acao: "saiu do quartel", variant: "visitante" });
     },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const handleCadastro = () => {
@@ -99,7 +96,7 @@ const Visitantes = () => {
           <VisitantesTable
             rows={visitantes}
             isLoading={isLoading}
-            onSaida={(id) => saidaMutation.mutate(id)}
+            onSaida={(v) => saidaMutation.mutate(v)}
             onDetalhes={setDetalhes}
           />
         </TabsContent>
@@ -115,13 +112,12 @@ const Visitantes = () => {
           <VisitantesTable
             rows={historico}
             isLoading={isLoading}
-            onSaida={(id) => saidaMutation.mutate(id)}
+            onSaida={(v) => saidaMutation.mutate(v)}
             onDetalhes={setDetalhes}
           />
         </TabsContent>
       </Tabs>
 
-      {/* Cadastro */}
       <Dialog open={showCadastro} onOpenChange={setShowCadastro}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
@@ -151,7 +147,6 @@ const Visitantes = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Detalhes */}
       <Dialog open={!!detalhes} onOpenChange={(o) => !o && setDetalhes(null)}>
         <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
@@ -186,7 +181,7 @@ const Row = ({ label, value }: { label: string; value: string }) => (
 const VisitantesTable = ({
   rows, isLoading, onSaida, onDetalhes,
 }: {
-  rows: Visitante[]; isLoading: boolean; onSaida: (id: string) => void; onDetalhes: (v: Visitante) => void;
+  rows: ApiVisitante[]; isLoading: boolean; onSaida: (v: ApiVisitante) => void; onDetalhes: (v: ApiVisitante) => void;
 }) => (
   <div className="rounded-lg border border-border overflow-hidden">
     <Table>
@@ -220,7 +215,7 @@ const VisitantesTable = ({
                   <Eye className="w-3.5 h-3.5" />
                 </Button>
                 {!v.hora_saida ? (
-                  <Button size="sm" variant="outline" onClick={() => onSaida(v.id)} className="gap-1 text-xs h-7">
+                  <Button size="sm" variant="outline" onClick={() => onSaida(v)} className="gap-1 text-xs h-7">
                     <LogOut className="w-3 h-3" /> Saída
                   </Button>
                 ) : (

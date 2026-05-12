@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { Car, History, Search, Fingerprint, RotateCcw, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localDb, getCaboOnDuty, Viatura, HistoricoViatura, uid, identificarMilitarPorNip } from "@/lib/localDb";
+import { api, ApiViatura, ApiHistoricoViatura, SYNC_OPTIONS, nomeDoMilitarPorNip } from "@/lib/api";
+import { getCaboOnDuty } from "@/lib/localDb";
+import { showOperationConfirm } from "@/components/OperationConfirm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -19,11 +21,9 @@ const statusBorder = {
   manutencao: "border-status-maintenance/30 hover:border-status-maintenance/60",
 } as const;
 
-const identificarPorNip = identificarMilitarPorNip;
-
 const Viaturas = () => {
   const queryClient = useQueryClient();
-  const [selected, setSelected] = useState<Viatura | null>(null);
+  const [selected, setSelected] = useState<ApiViatura | null>(null);
   const [dialogType, setDialogType] = useState<"saida" | "retorno" | null>(null);
 
   const [nipMotorista, setNipMotorista] = useState("");
@@ -35,80 +35,76 @@ const Viaturas = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
 
-  // filtros histórico
   const [fIni, setFIni] = useState("");
   const [fFim, setFFim] = useState("");
   const [fVtr, setFVtr] = useState("todas");
   const [fMot, setFMot] = useState("");
 
   const { data: viaturas = [], isLoading } = useQuery({
-    queryKey: ["viaturas"],
-    queryFn: async () => localDb.list<Viatura>("viaturas").sort((a, b) => a.numero - b.numero),
+    queryKey: ["viaturas"], queryFn: api.listViaturas, ...SYNC_OPTIONS,
   });
 
   const { data: historico = [] } = useQuery({
-    queryKey: ["historico_viaturas"],
-    queryFn: async () => localDb.list<HistoricoViatura>("historico_viaturas").sort((a, b) => b.data_saida.localeCompare(a.data_saida)),
+    queryKey: ["historico_viaturas"], queryFn: api.historicoViaturas, ...SYNC_OPTIONS,
   });
 
+  // Resolver militar_responsavel a partir do histórico em aberto
+  const motoristaAtual = (v: ApiViatura): string | null => {
+    if (v.militar_responsavel) return v.militar_responsavel;
+    const open = historico.find((h) => h.viatura_id === v.id && h.status === "em_uso");
+    return open?.motorista || null;
+  };
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: ["viaturas"] });
+    queryClient.invalidateQueries({ queryKey: ["historico_viaturas"] });
+  };
+
   const saidaMutation = useMutation({
-    mutationFn: async ({ viatura, cabo }: { viatura: Viatura; cabo: string }) => {
-      const motoristaNome = identificarPorNip(nipMotorista);
-      const kmInicial = viatura.km_atual;
-      localDb.update<Viatura>("viaturas", viatura.id, {
-        status: "em_uso",
-        militar_responsavel: motoristaNome,
-      });
-      localDb.insert<HistoricoViatura>("historico_viaturas", {
-        id: uid(),
-        viatura_id: viatura.id, viatura_prefixo: viatura.prefixo,
-        motorista: motoristaNome, matricula: nipMotorista,
-        destino,
-        km_saida: kmInicial,
-        km_retorno: null, km_rodado: null,
-        data_saida: new Date().toISOString(), data_retorno: null,
-        cabo_saida: cabo, cabo_retorno: null,
-        autonomia_informada: null, status: "em_uso",
-      });
+    mutationFn: async ({ viatura, cabo }: { viatura: ApiViatura; cabo: string }) => {
+      const motorista = await nomeDoMilitarPorNip(nipMotorista);
+      await api.saidaViatura({ viatura_id: viatura.id, motorista, nip: nipMotorista, destino, cabo });
+      return { motorista, viatura };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["viaturas"] });
-      queryClient.invalidateQueries({ queryKey: ["historico_viaturas"] });
-      toast({ title: "Saída Registrada", description: `${selected?.prefixo} saiu às ${new Date().toLocaleTimeString("pt-BR")}.` });
+    onSuccess: ({ motorista, viatura }) => {
+      invalidate();
+      showOperationConfirm({
+        nome: motorista,
+        acao: "saiu com a viatura",
+        detalhe: viatura.prefixo,
+        variant: "viatura",
+      });
       setDialogType(null); setSelected(null);
       setNipMotorista(""); setDestino("");
     },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const retornoMutation = useMutation({
-    mutationFn: async ({ viatura, cabo }: { viatura: Viatura; cabo: string }) => {
-      const km_retorno_val = kmRetorno ? parseInt(kmRetorno) : null;
-      localDb.update<Viatura>("viaturas", viatura.id, {
-        status: "disponivel", militar_responsavel: null,
-        km_atual: km_retorno_val ?? viatura.km_atual,
+    mutationFn: async ({ viatura, cabo }: { viatura: ApiViatura; cabo: string }) => {
+      await api.retornoViatura({
+        viatura_id: viatura.id,
+        km_retorno: parseInt(kmRetorno) || 0,
+        autonomia: autonomia || null,
+        cabo,
       });
-      const hist = localDb.list<HistoricoViatura>("historico_viaturas")
-        .filter((h) => h.viatura_id === viatura.id && h.status === "em_uso")
-        .sort((a, b) => b.data_saida.localeCompare(a.data_saida))[0];
-      if (hist) {
-        const km_rodado = km_retorno_val != null && hist.km_saida != null ? km_retorno_val - hist.km_saida : null;
-        localDb.update<HistoricoViatura>("historico_viaturas", hist.id, {
-          data_retorno: new Date().toISOString(),
-          km_retorno: km_retorno_val, km_rodado,
-          autonomia_informada: autonomia || null,
-          cabo_retorno: cabo, status: "retornada",
-        });
-      }
+      return viatura;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["viaturas"] });
-      queryClient.invalidateQueries({ queryKey: ["historico_viaturas"] });
-      toast({ title: "Retorno Registrado", description: `${selected?.prefixo} retornou.` });
+    onSuccess: (viatura) => {
+      const nome = motoristaAtual(viatura) || "Militar";
+      invalidate();
+      showOperationConfirm({
+        nome,
+        acao: "retornou com a viatura",
+        detalhe: viatura.prefixo,
+        variant: "viatura",
+      });
       setDialogType(null); setSelected(null); setKmRetorno(""); setAutonomia(""); setNipCabo("");
     },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const handleClick = (v: Viatura) => {
+  const handleClick = (v: ApiViatura) => {
     if (v.status === "manutencao") return;
     setSelected(v);
     setDialogType(v.status === "disponivel" ? "saida" : "retorno");
@@ -122,9 +118,10 @@ const Viaturas = () => {
     saidaMutation.mutate({ viatura: selected!, cabo: getCaboOnDuty() });
   };
 
-  const handleRetorno = () => {
+  const handleRetorno = async () => {
     if (!kmRetorno.trim()) { toast({ title: "Erro", description: "Informe a quilometragem.", variant: "destructive" }); return; }
-    retornoMutation.mutate({ viatura: selected!, cabo: nipCabo ? identificarPorNip(nipCabo) : getCaboOnDuty() });
+    const cabo = nipCabo ? await nomeDoMilitarPorNip(nipCabo) : getCaboOnDuty();
+    retornoMutation.mutate({ viatura: selected!, cabo });
   };
 
   const filtered = viaturas.filter((v) =>
@@ -135,8 +132,8 @@ const Viaturas = () => {
     const d = h.data_saida.slice(0, 10);
     if (fIni && d < fIni) return false;
     if (fFim && d > fFim) return false;
-    if (fVtr !== "todas" && h.viatura_id !== fVtr) return false;
-    if (fMot && !(h.motorista.toLowerCase().includes(fMot.toLowerCase()) || (h.matricula || "").includes(fMot))) return false;
+    if (fVtr !== "todas" && String(h.viatura_id) !== fVtr) return false;
+    if (fMot && !(h.motorista.toLowerCase().includes(fMot.toLowerCase()) || (h.nip || "").includes(fMot))) return false;
     return true;
   }), [historico, fIni, fFim, fVtr, fMot]);
 
@@ -174,21 +171,24 @@ const Viaturas = () => {
             <div className="text-center text-muted-foreground py-12 font-mono text-sm">Carregando...</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filtered.map((v) => (
-                <button key={v.id} onClick={() => handleClick(v)} disabled={v.status === "manutencao"}
-                  className={`relative p-5 rounded-lg border bg-card transition-all duration-200 text-left hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed ${statusBorder[v.status]}`}>
-                  <div className="flex items-start justify-between mb-3">
-                    <span className={statusDot[v.status]} />
-                    <span className="text-[10px] font-mono text-muted-foreground">{statusLabel[v.status]}</span>
-                  </div>
-                  <h3 className="text-lg font-bold text-foreground">{v.prefixo}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{v.modelo}</p>
-                  {v.km_atual !== null && <p className="text-[10px] text-muted-foreground mt-1 font-mono">KM: {v.km_atual.toLocaleString("pt-BR")}</p>}
-                  {v.militar_responsavel && (
-                    <p className="text-xs text-status-borrowed mt-2 font-mono">{v.militar_responsavel}</p>
-                  )}
-                </button>
-              ))}
+              {filtered.map((v) => {
+                const motorista = motoristaAtual(v);
+                return (
+                  <button key={v.id} onClick={() => handleClick(v)} disabled={v.status === "manutencao"}
+                    className={`relative p-5 rounded-lg border bg-card transition-all duration-200 text-left hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed ${statusBorder[v.status]}`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <span className={statusDot[v.status]} />
+                      <span className="text-[10px] font-mono text-muted-foreground">{statusLabel[v.status]}</span>
+                    </div>
+                    <h3 className="text-lg font-bold text-foreground">{v.prefixo}</h3>
+                    <p className="text-sm text-muted-foreground mt-1">{v.modelo}</p>
+                    {v.km_atual !== null && <p className="text-[10px] text-muted-foreground mt-1 font-mono">KM: {v.km_atual.toLocaleString("pt-BR")}</p>}
+                    {motorista && (
+                      <p className="text-xs text-status-borrowed mt-2 font-mono">{motorista}</p>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -203,7 +203,7 @@ const Viaturas = () => {
                 <SelectTrigger className="bg-secondary border-border"><SelectValue placeholder="Viatura" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas">Todas viaturas</SelectItem>
-                  {viaturas.map((v) => <SelectItem key={v.id} value={v.id}>{v.prefixo}</SelectItem>)}
+                  {viaturas.map((v) => <SelectItem key={v.id} value={String(v.id)}>{v.prefixo}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Input value={fMot} onChange={(e) => setFMot(e.target.value)} placeholder="Motorista / NIP" className="bg-secondary border-border" />
@@ -250,7 +250,6 @@ const Viaturas = () => {
         </TabsContent>
       </Tabs>
 
-      {/* SAÍDA — biometria/NIP + destino, KM automático */}
       <Dialog open={dialogType === "saida"} onOpenChange={() => setDialogType(null)}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
@@ -280,12 +279,11 @@ const Viaturas = () => {
         </DialogContent>
       </Dialog>
 
-      {/* RETORNO — KM + autonomia + biometria do cabo */}
       <Dialog open={dialogType === "retorno"} onOpenChange={() => setDialogType(null)}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><RotateCcw className="w-5 h-5 text-primary" /> Retorno — {selected?.prefixo}</DialogTitle>
-            <DialogDescription>{selected?.militar_responsavel}</DialogDescription>
+            <DialogDescription>{selected ? motoristaAtual(selected) : ""}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-2">
             <div>
