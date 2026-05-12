@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Package, Plus, Search, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { localDb, getCaboOnDuty, RegistroMaterial, uid, buscarBiometriaPorNip } from "@/lib/localDb";
+import { api, ApiMaterial, SYNC_OPTIONS, nomeDoMilitarPorNip } from "@/lib/api";
+import { getCaboOnDuty } from "@/lib/localDb";
+import { showOperationConfirm } from "@/components/OperationConfirm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +15,8 @@ const MaterialPage = () => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ nome_material: "", militar: "", nip: "", destino: "" });
   const [search, setSearch] = useState("");
+  const [militarReconhecido, setMilitarReconhecido] = useState<string | null>(null);
 
-  // filtros
   const [fMaterial, setFMaterial] = useState("");
   const [fMilitar, setFMilitar] = useState("");
   const [fDestino, setFDestino] = useState("");
@@ -22,29 +24,52 @@ const MaterialPage = () => {
   const [fFim, setFFim] = useState("");
 
   const { data: registros = [] } = useQuery({
-    queryKey: ["registros_materiais"],
-    queryFn: async () =>
-      localDb.list<RegistroMaterial>("registros_materiais").sort((a, b) => b.data_registro.localeCompare(a.data_registro)),
+    queryKey: ["registros_materiais"], queryFn: api.listMateriais, ...SYNC_OPTIONS,
   });
+
+  // Resolve nome a partir do NIP (debounced)
+  useEffect(() => {
+    const nip = form.nip.trim();
+    if (!nip) { setMilitarReconhecido(null); return; }
+    let cancel = false;
+    const t = setTimeout(async () => {
+      const m = await api.getMilitarByNip(nip);
+      if (cancel) return;
+      if (m?.nome) {
+        setMilitarReconhecido(m.nome);
+        setForm((f) => ({ ...f, militar: m.nome }));
+      } else {
+        setMilitarReconhecido(null);
+      }
+    }, 250);
+    return () => { cancel = true; clearTimeout(t); };
+  }, [form.nip]);
 
   const insertMutation = useMutation({
     mutationFn: async () => {
-      localDb.insert<RegistroMaterial>("registros_materiais", {
-        id: uid(), nome_material: form.nome_material, militar: form.militar, nip: form.nip,
-        destino: form.destino, data_registro: new Date().toISOString(), cabo_registro: getCaboOnDuty(),
+      const militar = form.militar.trim() || (await nomeDoMilitarPorNip(form.nip));
+      await api.createMaterial({
+        nome_material: form.nome_material,
+        militar,
+        nip: form.nip,
+        destino: form.destino,
+        cabo_registro: getCaboOnDuty(),
       });
+      return { militar, material: form.nome_material };
     },
-    onSuccess: () => {
+    onSuccess: ({ militar, material }) => {
       queryClient.invalidateQueries({ queryKey: ["registros_materiais"] });
-      toast({ title: "Material registrado", description: `${form.nome_material} registrado.` });
+      showOperationConfirm({ nome: militar, acao: "registrou material", detalhe: material, variant: "material" });
       setForm({ nome_material: "", militar: "", nip: "", destino: "" });
+      setMilitarReconhecido(null);
       setOpen(false);
     },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
   const handleSubmit = () => {
-    if (!form.nome_material.trim() || !form.militar.trim() || !form.nip.trim() || !form.destino.trim()) {
-      toast({ title: "Erro", description: "Preencha todos os campos.", variant: "destructive" });
+    if (!form.nome_material.trim() || !form.nip.trim() || !form.destino.trim()) {
+      toast({ title: "Erro", description: "Preencha material, NIP e destino.", variant: "destructive" });
       return;
     }
     insertMutation.mutate();
@@ -132,29 +157,22 @@ const MaterialPage = () => {
               <Input value={form.nome_material} onChange={(e) => setForm({ ...form, nome_material: e.target.value })} className="bg-secondary border-border" autoFocus />
             </div>
             <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">MILITAR RESPONSÁVEL</label>
-              <Input value={form.militar} onChange={(e) => setForm({ ...form, militar: e.target.value })} placeholder="Posto/Grad Nome" className="bg-secondary border-border" />
-            </div>
-            <div>
               <label className="text-xs font-mono text-muted-foreground mb-1.5 block">NIP</label>
               <Input
                 value={form.nip}
-                onChange={(e) => {
-                  const nip = e.target.value;
-                  const bio = buscarBiometriaPorNip(nip);
-                  setForm((f) => ({
-                    ...f,
-                    nip,
-                    militar: bio ? bio.identificacao : f.militar,
-                  }));
-                }}
+                onChange={(e) => setForm({ ...form, nip: e.target.value })}
                 className="bg-secondary border-border"
+                placeholder="Digite o NIP"
               />
-              {buscarBiometriaPorNip(form.nip) && (
+              {militarReconhecido && (
                 <p className="text-[10px] font-mono text-status-available mt-1">
-                  ✓ BIOMETRIA RECONHECIDA: {buscarBiometriaPorNip(form.nip)?.identificacao}
+                  ✓ MILITAR IDENTIFICADO: {militarReconhecido}
                 </p>
               )}
+            </div>
+            <div>
+              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">MILITAR RESPONSÁVEL</label>
+              <Input value={form.militar} onChange={(e) => setForm({ ...form, militar: e.target.value })} placeholder="Auto preenchido pelo NIP" className="bg-secondary border-border" />
             </div>
             <div>
               <label className="text-xs font-mono text-muted-foreground mb-1.5 block">DESTINO DO MATERIAL</label>

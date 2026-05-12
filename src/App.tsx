@@ -16,6 +16,7 @@ import Pdv from "./pages/Pdv";
 import Dashboard from "./pages/Dashboard";
 import Biometria from "./pages/Biometria";
 import NotFound from "./pages/NotFound";
+import { OperationConfirm } from "@/components/OperationConfirm";
 
 const queryClient = new QueryClient();
 
@@ -79,6 +80,7 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
+      <OperationConfirm />
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />

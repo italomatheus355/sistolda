@@ -11,10 +11,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import {
-  localDb, Chave, HistoricoChave, Viatura, HistoricoViatura,
-  Visitante, RegistroMaterial, DEPARTAMENTOS,
-} from "@/lib/localDb";
+import { api, ApiChave, ApiHistoricoChave, ApiViatura, ApiHistoricoViatura, ApiVisitante, ApiMaterial, SYNC_OPTIONS } from "@/lib/api";
+import { DEPARTAMENTOS } from "@/lib/localDb";
 
 const COLORS = {
   green: "hsl(var(--status-available))",
@@ -59,12 +57,10 @@ function ChartCard({ title, children, className = "" }: any) {
 // ============ CHAVES ============
 function DashboardChaves() {
   const { data: chaves = [] } = useQuery({
-    queryKey: ["chaves"], queryFn: async () => localDb.list<Chave>("chaves"),
+    queryKey: ["chaves"], queryFn: api.listChaves, ...SYNC_OPTIONS,
   });
   const { data: historico = [] } = useQuery({
-    queryKey: ["historico_chaves"],
-    queryFn: async () => localDb.list<HistoricoChave>("historico_chaves")
-      .sort((a, b) => b.data_retirada.localeCompare(a.data_retirada)),
+    queryKey: ["historico_chaves"], queryFn: api.historicoChaves, ...SYNC_OPTIONS,
   });
 
   const total = chaves.length;
@@ -155,12 +151,10 @@ function DashboardChaves() {
 // ============ VIATURAS ============
 function DashboardViaturas() {
   const { data: viaturas = [] } = useQuery({
-    queryKey: ["viaturas"], queryFn: async () => localDb.list<Viatura>("viaturas"),
+    queryKey: ["viaturas"], queryFn: api.listViaturas, ...SYNC_OPTIONS,
   });
   const { data: historico = [] } = useQuery({
-    queryKey: ["historico_viaturas"],
-    queryFn: async () => localDb.list<HistoricoViatura>("historico_viaturas")
-      .sort((a, b) => b.data_saida.localeCompare(a.data_saida)),
+    queryKey: ["historico_viaturas"], queryFn: api.historicoViaturas, ...SYNC_OPTIONS,
   });
 
   const disponivel = viaturas.filter((v) => v.status === "disponivel").length;
@@ -247,9 +241,7 @@ function DashboardViaturas() {
 // ============ MATERIAIS ============
 function DashboardMateriais() {
   const { data: registros = [] } = useQuery({
-    queryKey: ["registros_materiais"],
-    queryFn: async () => localDb.list<RegistroMaterial>("registros_materiais")
-      .sort((a, b) => b.data_registro.localeCompare(a.data_registro)),
+    queryKey: ["registros_materiais"], queryFn: api.listMateriais, ...SYNC_OPTIONS,
   });
 
   const total = registros.length;
@@ -339,9 +331,7 @@ function DashboardMateriais() {
 // ============ VISITANTES ============
 function DashboardVisitantes() {
   const { data: visitantes = [] } = useQuery({
-    queryKey: ["visitantes"],
-    queryFn: async () => localDb.list<Visitante>("visitantes")
-      .sort((a, b) => b.hora_entrada.localeCompare(a.hora_entrada)),
+    queryKey: ["visitantes"], queryFn: api.listVisitantes, ...SYNC_OPTIONS,
   });
 
   const hoje = new Date().toISOString().slice(0, 10);
