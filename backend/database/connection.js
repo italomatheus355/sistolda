@@ -1,6 +1,7 @@
 const Database = require("better-sqlite3");
 const fs = require("fs");
 const path = require("path");
+const { seedMilitares } = require("./seedMilitares");
 
 const DB_PATH = path.join(__dirname, "sistolda.db");
 const SCHEMA_PATH = path.join(__dirname, "schema.sql");
@@ -92,6 +93,8 @@ function seed() {
     insert.run("Ford Ka", "Ford Ka", 45000);
     insert.run("L200",    "Mitsubishi L200", 78000);
   }
+
+  seedMilitares(db);
 
   const userCount = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
   if (userCount === 0) {
