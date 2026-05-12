@@ -1,6 +1,7 @@
 const Database = require("better-sqlite3");
 const fs = require("fs");
 const path = require("path");
+const { seedMilitares } = require("./seedMilitares");
 
 const DB_PATH = path.join(__dirname, "sistolda.db");
 const SCHEMA_PATH = path.join(__dirname, "schema.sql");
