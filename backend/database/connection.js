@@ -68,6 +68,7 @@ const CHAVES_ORDENADAS = [
 function initDb() {
   const schema = fs.readFileSync(SCHEMA_PATH, "utf8");
   db.exec(schema);
+  migrateVisitantes();
   seed();
   console.log("[SISTOLDA] Banco SQLite inicializado em", DB_PATH);
 }
