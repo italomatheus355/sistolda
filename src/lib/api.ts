@@ -81,6 +81,25 @@ export interface ApiVisitante {
   hora_saida: string | null;
   observacoes: string | null;
   cabo_registro: string | null;
+  cpf?: string | null;
+  rg?: string | null;
+  telefone?: string | null;
+  organizacao?: string | null;
+  recorrente_id?: number | null;
+  tipo?: "comum" | "recorrente";
+}
+export interface ApiVisitanteRecorrente {
+  id: number;
+  nome: string;
+  cpf: string | null;
+  rg: string | null;
+  telefone: string | null;
+  organizacao: string | null;
+  observacoes: string | null;
+  biometria_template: string | null;
+  biometria_leituras: number;
+  status: "ativo" | "inativo";
+  created_at: string;
 }
 export interface ApiMaterial {
   id: number;
