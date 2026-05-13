@@ -107,4 +107,17 @@ function seed() {
   }
 }
 
+function migrateVisitantes() {
+  const cols = db.prepare("PRAGMA table_info(visitantes)").all().map((c) => c.name);
+  const adds = [
+    ["cpf",           "ALTER TABLE visitantes ADD COLUMN cpf TEXT"],
+    ["rg",            "ALTER TABLE visitantes ADD COLUMN rg TEXT"],
+    ["telefone",      "ALTER TABLE visitantes ADD COLUMN telefone TEXT"],
+    ["organizacao",   "ALTER TABLE visitantes ADD COLUMN organizacao TEXT"],
+    ["recorrente_id", "ALTER TABLE visitantes ADD COLUMN recorrente_id INTEGER"],
+    ["tipo",          "ALTER TABLE visitantes ADD COLUMN tipo TEXT NOT NULL DEFAULT 'comum'"],
+  ];
+  for (const [name, sql] of adds) if (!cols.includes(name)) db.exec(sql);
+}
+
 module.exports = { db, initDb };
