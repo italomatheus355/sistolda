@@ -75,6 +75,7 @@ const Visitantes = () => {
         local_destino: form.localDestino,
         observacoes: form.observacoes || null,
         cabo_registro: cabo,
+        telefone: form.telefone || null,
         tipo: "comum",
       });
     },
@@ -349,12 +350,15 @@ const Visitantes = () => {
               <Field label="DESTINO *" value={form.localDestino} onChange={(v) => setForm({ ...form, localDestino: v })} placeholder="Local de destino" />
 
               {form.tipo === "comum" ? (
-                <Field label="DOCUMENTO *" value={form.documento} onChange={(v) => setForm({ ...form, documento: v })} placeholder="RG ou CPF" />
+                <>
+                  <Field label="DOCUMENTO *" value={form.documento} onChange={(v) => setForm({ ...form, documento: v })} placeholder="RG ou CPF" />
+                  <Field label="TELEFONE / NÚMERO" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} placeholder="(Opcional) Número para contato" />
+                </>
               ) : (
                 <>
                   <Field label="CPF *" value={form.cpf} onChange={(v) => setForm({ ...form, cpf: onlyDigits(v).slice(0, 11) })} placeholder="00000000000" />
                   <Field label="RG" value={form.rg} onChange={(v) => setForm({ ...form, rg: v })} placeholder="RG" />
-                  <Field label="TELEFONE" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} placeholder="(00) 00000-0000" />
+                  <Field label="TELEFONE / NÚMERO" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} placeholder="(Opcional) Número para contato" />
                   <Field label="ORGANIZAÇÃO / FORÇA *" value={form.organizacao} onChange={(v) => setForm({ ...form, organizacao: v })} placeholder="Ex.: Exército - 5º BIS" />
                 </>
               )}
@@ -586,6 +590,7 @@ const VisitantesTable = ({
           <TableHead className="text-xs font-mono">TIPO</TableHead>
           <TableHead className="text-xs font-mono">NOME</TableHead>
           <TableHead className="text-xs font-mono">ORG / DOC</TableHead>
+          <TableHead className="text-xs font-mono">TELEFONE</TableHead>
           <TableHead className="text-xs font-mono">DESTINO</TableHead>
           <TableHead className="text-xs font-mono">ENTRADA</TableHead>
           <TableHead className="text-xs font-mono">SAÍDA</TableHead>
@@ -594,9 +599,9 @@ const VisitantesTable = ({
       </TableHeader>
       <TableBody>
         {isLoading ? (
-          <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
+          <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
         ) : rows.length === 0 ? (
-          <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
+          <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
         ) : rows.map((v) => (
           <TableRow key={v.id} className="hover:bg-secondary/30">
             <TableCell>
@@ -610,6 +615,7 @@ const VisitantesTable = ({
             <TableCell className="text-xs font-mono text-muted-foreground">
               {v.organizacao || v.documento}
             </TableCell>
+            <TableCell className="text-xs font-mono text-muted-foreground">{v.telefone || "—"}</TableCell>
             <TableCell className="text-sm text-muted-foreground">{v.local_destino}</TableCell>
             <TableCell className="text-xs font-mono">{new Date(v.hora_entrada).toLocaleString("pt-BR")}</TableCell>
             <TableCell className="text-xs font-mono">
