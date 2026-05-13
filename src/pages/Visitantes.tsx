@@ -350,12 +350,15 @@ const Visitantes = () => {
               <Field label="DESTINO *" value={form.localDestino} onChange={(v) => setForm({ ...form, localDestino: v })} placeholder="Local de destino" />
 
               {form.tipo === "comum" ? (
-                <Field label="DOCUMENTO *" value={form.documento} onChange={(v) => setForm({ ...form, documento: v })} placeholder="RG ou CPF" />
+                <>
+                  <Field label="DOCUMENTO *" value={form.documento} onChange={(v) => setForm({ ...form, documento: v })} placeholder="RG ou CPF" />
+                  <Field label="TELEFONE / NÚMERO" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} placeholder="(Opcional) Número para contato" />
+                </>
               ) : (
                 <>
                   <Field label="CPF *" value={form.cpf} onChange={(v) => setForm({ ...form, cpf: onlyDigits(v).slice(0, 11) })} placeholder="00000000000" />
                   <Field label="RG" value={form.rg} onChange={(v) => setForm({ ...form, rg: v })} placeholder="RG" />
-                  <Field label="TELEFONE" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} placeholder="(00) 00000-0000" />
+                  <Field label="TELEFONE / NÚMERO" value={form.telefone} onChange={(v) => setForm({ ...form, telefone: v })} placeholder="(Opcional) Número para contato" />
                   <Field label="ORGANIZAÇÃO / FORÇA *" value={form.organizacao} onChange={(v) => setForm({ ...form, organizacao: v })} placeholder="Ex.: Exército - 5º BIS" />
                 </>
               )}
