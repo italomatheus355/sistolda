@@ -143,10 +143,21 @@ export const api = {
 
   // Visitantes
   listVisitantes: () => request<ApiVisitante[]>("/visitantes"),
-  createVisitante: (body: Omit<ApiVisitante, "id" | "hora_entrada" | "hora_saida">) =>
-    request("/visitantes", { method: "POST", body: JSON.stringify(body) }),
+  createVisitante: (body: Partial<ApiVisitante> & { nome: string; documento: string; local_destino: string }) =>
+    request<{ id: number; ok: true }>("/visitantes", { method: "POST", body: JSON.stringify(body) }),
   saidaVisitante: (id: number) =>
     request(`/visitantes/${id}/saida`, { method: "POST" }),
+
+  // Visitantes Recorrentes
+  listRecorrentes: () => request<ApiVisitanteRecorrente[]>("/visitantes-recorrentes"),
+  getRecorrenteByCpf: async (cpf: string): Promise<ApiVisitanteRecorrente | null> => {
+    const n = onlyDigits(cpf);
+    if (!n) return null;
+    try { return await request<ApiVisitanteRecorrente>(`/visitantes-recorrentes/cpf/${n}`); }
+    catch { return null; }
+  },
+  createRecorrente: (body: Partial<ApiVisitanteRecorrente> & { nome: string; cpf: string }) =>
+    request<{ id: number; ok: true }>("/visitantes-recorrentes", { method: "POST", body: JSON.stringify(body) }),
 
   // Materiais
   listMateriais: () => request<ApiMaterial[]>("/materiais"),
