@@ -75,6 +75,7 @@ const Visitantes = () => {
         local_destino: form.localDestino,
         observacoes: form.observacoes || null,
         cabo_registro: cabo,
+        telefone: form.telefone || null,
         tipo: "comum",
       });
     },
