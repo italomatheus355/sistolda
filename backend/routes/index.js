@@ -7,6 +7,7 @@ const materiais  = require("../controllers/materiaisController");
 const pdv        = require("../controllers/pdvController");
 const militares  = require("../controllers/militaresController");
 const biometrias = require("../controllers/biometriasController");
+const recorrentes = require("../controllers/visitantesRecorrentesController");
 
 // Chaves
 router.get("/chaves", chaves.list);
@@ -24,6 +25,14 @@ router.post("/viaturas/retorno", viaturas.retorno);
 router.get("/visitantes", visitantes.list);
 router.post("/visitantes", visitantes.create);
 router.post("/visitantes/:id/saida", visitantes.saida);
+
+// Visitantes Recorrentes (militares de outras forças com biometria)
+router.get("/visitantes-recorrentes", recorrentes.list);
+router.get("/visitantes-recorrentes/cpf/:cpf", recorrentes.getByCpf);
+router.get("/visitantes-recorrentes/:id", recorrentes.get);
+router.post("/visitantes-recorrentes", recorrentes.create);
+router.put("/visitantes-recorrentes/:id", recorrentes.update);
+router.put("/visitantes-recorrentes/:id/status", recorrentes.setStatus);
 
 // Materiais
 router.get("/materiais", materiais.list);
