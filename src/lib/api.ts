@@ -81,6 +81,25 @@ export interface ApiVisitante {
   hora_saida: string | null;
   observacoes: string | null;
   cabo_registro: string | null;
+  cpf?: string | null;
+  rg?: string | null;
+  telefone?: string | null;
+  organizacao?: string | null;
+  recorrente_id?: number | null;
+  tipo?: "comum" | "recorrente";
+}
+export interface ApiVisitanteRecorrente {
+  id: number;
+  nome: string;
+  cpf: string | null;
+  rg: string | null;
+  telefone: string | null;
+  organizacao: string | null;
+  observacoes: string | null;
+  biometria_template: string | null;
+  biometria_leituras: number;
+  status: "ativo" | "inativo";
+  created_at: string;
 }
 export interface ApiMaterial {
   id: number;
@@ -124,10 +143,21 @@ export const api = {
 
   // Visitantes
   listVisitantes: () => request<ApiVisitante[]>("/visitantes"),
-  createVisitante: (body: Omit<ApiVisitante, "id" | "hora_entrada" | "hora_saida">) =>
-    request("/visitantes", { method: "POST", body: JSON.stringify(body) }),
+  createVisitante: (body: Partial<ApiVisitante> & { nome: string; documento: string; local_destino: string }) =>
+    request<{ id: number; ok: true }>("/visitantes", { method: "POST", body: JSON.stringify(body) }),
   saidaVisitante: (id: number) =>
     request(`/visitantes/${id}/saida`, { method: "POST" }),
+
+  // Visitantes Recorrentes
+  listRecorrentes: () => request<ApiVisitanteRecorrente[]>("/visitantes-recorrentes"),
+  getRecorrenteByCpf: async (cpf: string): Promise<ApiVisitanteRecorrente | null> => {
+    const n = onlyDigits(cpf);
+    if (!n) return null;
+    try { return await request<ApiVisitanteRecorrente>(`/visitantes-recorrentes/cpf/${n}`); }
+    catch { return null; }
+  },
+  createRecorrente: (body: Partial<ApiVisitanteRecorrente> & { nome: string; cpf: string }) =>
+    request<{ id: number; ok: true }>("/visitantes-recorrentes", { method: "POST", body: JSON.stringify(body) }),
 
   // Materiais
   listMateriais: () => request<ApiMaterial[]>("/materiais"),

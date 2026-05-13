@@ -79,7 +79,27 @@ CREATE TABLE IF NOT EXISTS visitantes (
   hora_entrada TEXT NOT NULL DEFAULT (datetime('now')),
   hora_saida TEXT,
   observacoes TEXT,
-  cabo_registro TEXT
+  cabo_registro TEXT,
+  cpf TEXT,
+  rg TEXT,
+  telefone TEXT,
+  organizacao TEXT,
+  recorrente_id INTEGER,
+  tipo TEXT NOT NULL DEFAULT 'comum'
+);
+
+CREATE TABLE IF NOT EXISTS visitantes_recorrentes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  cpf TEXT UNIQUE,
+  rg TEXT,
+  telefone TEXT,
+  organizacao TEXT,
+  observacoes TEXT,
+  biometria_template TEXT,
+  biometria_leituras INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo','inativo')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS materiais (
