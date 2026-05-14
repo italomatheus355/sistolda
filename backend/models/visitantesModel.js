@@ -8,8 +8,9 @@ module.exports = {
     const r = db.prepare(`
       INSERT INTO visitantes
         (nome, documento, militar_responsavel, local_destino, observacoes, cabo_registro,
-         cpf, rg, telefone, organizacao, recorrente_id, tipo)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+         cpf, rg, telefone, organizacao, recorrente_id, tipo,
+         civil_id, militar_externo_id, forca_militar, posto_graduacao, origem_identificacao)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `).run(
       v.nome,
       v.documento,
@@ -22,7 +23,12 @@ module.exports = {
       v.telefone || null,
       v.organizacao || null,
       v.recorrente_id || null,
-      v.tipo === "recorrente" ? "recorrente" : "comum",
+      v.tipo === "recorrente" ? "recorrente" : (v.tipo === "civil" ? "civil" : (v.tipo === "militar_externo" ? "militar_externo" : "comum")),
+      v.civil_id || null,
+      v.militar_externo_id || null,
+      v.forca_militar || null,
+      v.posto_graduacao || null,
+      v.origem_identificacao || "manual",
     );
     return r.lastInsertRowid;
   },

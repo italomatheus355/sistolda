@@ -88,6 +88,29 @@ CREATE TABLE IF NOT EXISTS visitantes (
   tipo TEXT NOT NULL DEFAULT 'comum'
 );
 
+CREATE TABLE IF NOT EXISTS visitantes_civis (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  cpf TEXT UNIQUE,
+  rg TEXT,
+  telefone TEXT,
+  empresa TEXT,
+  observacoes TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS militares_externos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  cpf TEXT UNIQUE,
+  posto_graduacao TEXT,
+  forca_militar TEXT,
+  telefone TEXT,
+  biometria_template TEXT,
+  biometria_leituras INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS visitantes_recorrentes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nome TEXT NOT NULL,

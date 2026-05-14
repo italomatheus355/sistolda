@@ -8,6 +8,8 @@ const pdv        = require("../controllers/pdvController");
 const militares  = require("../controllers/militaresController");
 const biometrias = require("../controllers/biometriasController");
 const recorrentes = require("../controllers/visitantesRecorrentesController");
+const civis      = require("../controllers/visitantesCivisController");
+const externos   = require("../controllers/militaresExternosController");
 
 // Chaves
 router.get("/chaves", chaves.list);
@@ -33,6 +35,22 @@ router.get("/visitantes-recorrentes/:id", recorrentes.get);
 router.post("/visitantes-recorrentes", recorrentes.create);
 router.put("/visitantes-recorrentes/:id", recorrentes.update);
 router.put("/visitantes-recorrentes/:id/status", recorrentes.setStatus);
+
+// Visitantes Civis (cadastro permanente)
+router.get("/visitantes-civis", civis.list);
+router.get("/visitantes-civis/cpf/:cpf", civis.getByCpf);
+router.get("/visitantes-civis/rg/:rg", civis.getByRg);
+router.get("/visitantes-civis/:id", civis.get);
+router.post("/visitantes-civis", civis.create);
+router.put("/visitantes-civis/:id", civis.update);
+
+// Militares Externos (cadastro permanente + biometria)
+router.get("/militares-externos", externos.list);
+router.get("/militares-externos/cpf/:cpf", externos.getByCpf);
+router.get("/militares-externos/:id", externos.get);
+router.post("/militares-externos", externos.create);
+router.put("/militares-externos/:id", externos.update);
+router.post("/militares-externos/identificar-biometria", externos.identificarBiometria);
 
 // Materiais
 router.get("/materiais", materiais.list);
