@@ -86,7 +86,12 @@ export interface ApiVisitante {
   telefone?: string | null;
   organizacao?: string | null;
   recorrente_id?: number | null;
-  tipo?: "comum" | "recorrente";
+  tipo?: "comum" | "recorrente" | "civil" | "militar_externo";
+  civil_id?: number | null;
+  militar_externo_id?: number | null;
+  forca_militar?: string | null;
+  posto_graduacao?: string | null;
+  origem_identificacao?: "manual" | "cpf" | "rg" | "biometria";
 }
 export interface ApiVisitanteRecorrente {
   id: number;
@@ -99,6 +104,27 @@ export interface ApiVisitanteRecorrente {
   biometria_template: string | null;
   biometria_leituras: number;
   status: "ativo" | "inativo";
+  created_at: string;
+}
+export interface ApiVisitanteCivil {
+  id: number;
+  nome: string;
+  cpf: string | null;
+  rg: string | null;
+  telefone: string | null;
+  empresa: string | null;
+  observacoes: string | null;
+  created_at: string;
+}
+export interface ApiMilitarExterno {
+  id: number;
+  nome: string;
+  cpf: string | null;
+  posto_graduacao: string | null;
+  forca_militar: string | null;
+  telefone: string | null;
+  biometria_template: string | null;
+  biometria_leituras: number;
   created_at: string;
 }
 export interface ApiMaterial {
@@ -158,6 +184,41 @@ export const api = {
   },
   createRecorrente: (body: Partial<ApiVisitanteRecorrente> & { nome: string; cpf: string }) =>
     request<{ id: number; ok: true }>("/visitantes-recorrentes", { method: "POST", body: JSON.stringify(body) }),
+
+  // Visitantes Civis (cadastro permanente)
+  listCivis: () => request<ApiVisitanteCivil[]>("/visitantes-civis"),
+  getCivilByCpf: async (cpf: string): Promise<ApiVisitanteCivil | null> => {
+    const n = onlyDigits(cpf);
+    if (!n) return null;
+    try { return await request<ApiVisitanteCivil>(`/visitantes-civis/cpf/${n}`); }
+    catch { return null; }
+  },
+  getCivilByRg: async (rg: string): Promise<ApiVisitanteCivil | null> => {
+    const r = (rg || "").trim();
+    if (!r) return null;
+    try { return await request<ApiVisitanteCivil>(`/visitantes-civis/rg/${encodeURIComponent(r)}`); }
+    catch { return null; }
+  },
+  createCivil: (body: Partial<ApiVisitanteCivil> & { nome: string; cpf: string }) =>
+    request<{ id: number; ok: true }>("/visitantes-civis", { method: "POST", body: JSON.stringify(body) }),
+
+  // Militares Externos (cadastro permanente + biometria)
+  listExternos: () => request<ApiMilitarExterno[]>("/militares-externos"),
+  getExternoByCpf: async (cpf: string): Promise<ApiMilitarExterno | null> => {
+    const n = onlyDigits(cpf);
+    if (!n) return null;
+    try { return await request<ApiMilitarExterno>(`/militares-externos/cpf/${n}`); }
+    catch { return null; }
+  },
+  createExterno: (body: Partial<ApiMilitarExterno> & { nome: string; cpf: string }) =>
+    request<{ id: number; ok: true }>("/militares-externos", { method: "POST", body: JSON.stringify(body) }),
+  identificarExternoBiometria: async (id: number): Promise<ApiMilitarExterno | null> => {
+    try {
+      return await request<ApiMilitarExterno>("/militares-externos/identificar-biometria", {
+        method: "POST", body: JSON.stringify({ id }),
+      });
+    } catch { return null; }
+  },
 
   // Materiais
   listMateriais: () => request<ApiMaterial[]>("/materiais"),

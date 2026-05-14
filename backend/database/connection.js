@@ -116,6 +116,11 @@ function migrateVisitantes() {
     ["organizacao",   "ALTER TABLE visitantes ADD COLUMN organizacao TEXT"],
     ["recorrente_id", "ALTER TABLE visitantes ADD COLUMN recorrente_id INTEGER"],
     ["tipo",          "ALTER TABLE visitantes ADD COLUMN tipo TEXT NOT NULL DEFAULT 'comum'"],
+    ["civil_id",              "ALTER TABLE visitantes ADD COLUMN civil_id INTEGER"],
+    ["militar_externo_id",    "ALTER TABLE visitantes ADD COLUMN militar_externo_id INTEGER"],
+    ["forca_militar",         "ALTER TABLE visitantes ADD COLUMN forca_militar TEXT"],
+    ["posto_graduacao",       "ALTER TABLE visitantes ADD COLUMN posto_graduacao TEXT"],
+    ["origem_identificacao",  "ALTER TABLE visitantes ADD COLUMN origem_identificacao TEXT NOT NULL DEFAULT 'manual'"],
   ];
   for (const [name, sql] of adds) if (!cols.includes(name)) db.exec(sql);
 }
