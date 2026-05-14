@@ -86,7 +86,12 @@ export interface ApiVisitante {
   telefone?: string | null;
   organizacao?: string | null;
   recorrente_id?: number | null;
-  tipo?: "comum" | "recorrente";
+  tipo?: "comum" | "recorrente" | "civil" | "militar_externo";
+  civil_id?: number | null;
+  militar_externo_id?: number | null;
+  forca_militar?: string | null;
+  posto_graduacao?: string | null;
+  origem_identificacao?: "manual" | "cpf" | "rg" | "biometria";
 }
 export interface ApiVisitanteRecorrente {
   id: number;
@@ -99,6 +104,27 @@ export interface ApiVisitanteRecorrente {
   biometria_template: string | null;
   biometria_leituras: number;
   status: "ativo" | "inativo";
+  created_at: string;
+}
+export interface ApiVisitanteCivil {
+  id: number;
+  nome: string;
+  cpf: string | null;
+  rg: string | null;
+  telefone: string | null;
+  empresa: string | null;
+  observacoes: string | null;
+  created_at: string;
+}
+export interface ApiMilitarExterno {
+  id: number;
+  nome: string;
+  cpf: string | null;
+  posto_graduacao: string | null;
+  forca_militar: string | null;
+  telefone: string | null;
+  biometria_template: string | null;
+  biometria_leituras: number;
   created_at: string;
 }
 export interface ApiMaterial {
