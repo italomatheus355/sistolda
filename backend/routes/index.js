@@ -10,6 +10,7 @@ const biometrias = require("../controllers/biometriasController");
 const recorrentes = require("../controllers/visitantesRecorrentesController");
 const civis      = require("../controllers/visitantesCivisController");
 const externos   = require("../controllers/militaresExternosController");
+const relatorios = require("../controllers/relatoriosController");
 
 // Chaves
 router.get("/chaves", chaves.list);
@@ -72,5 +73,9 @@ router.get("/biometrias/nip/:nip", biometrias.getByNip);
 router.post("/biometrias", biometrias.create);
 router.put("/biometrias/:id/status", biometrias.setStatus);
 router.delete("/biometrias/:id", biometrias.remove);
+
+// Relatórios automáticos (PDF/XLSX)
+router.post("/relatorios/gerar", relatorios.gerarHoje);
+router.post("/relatorios/gerar/:data", relatorios.gerarData);
 
 module.exports = router;

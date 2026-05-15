@@ -9,6 +9,7 @@ const path = require("path");
 const { initDb } = require("./database/connection");
 const routes = require("./routes");
 const errorHandler = require("./middleware/errorHandler");
+const { startScheduler } = require("./services/scheduler");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -31,4 +32,5 @@ app.use(errorHandler);
 
 app.listen(PORT, HOST, () => {
   console.log(`[SISTOLDA] Backend local rodando em http://${HOST}:${PORT}`);
+  startScheduler();
 });
