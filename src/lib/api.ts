@@ -232,6 +232,8 @@ export const api = {
     if (!n) return null;
     try { return await request<ApiMilitar>(`/militares/${n}`); }
     catch { return null; }
+  },
+
   // Operação unificada — autenticação por NIP (leitor Keyboard Wedge)
   autenticarBiometria: (body: {
     nip: string;
@@ -250,7 +252,6 @@ export const api = {
   }>("/operacao/autenticar-biometria", { method: "POST", body: JSON.stringify(body) }),
 };
 
-};
 
 // ============ Polling padrão para sincronização entre PCs ============
 export const SYNC_OPTIONS = {
