@@ -154,3 +154,16 @@ CREATE TABLE IF NOT EXISTS pdv (
   material_gsar TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS logs_auditoria (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+  modulo TEXT,
+  acao TEXT,
+  nip TEXT,
+  nome TEXT,
+  descricao TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_logs_auditoria_ts ON logs_auditoria(timestamp);
+CREATE INDEX IF NOT EXISTS idx_logs_auditoria_nip ON logs_auditoria(nip);
+

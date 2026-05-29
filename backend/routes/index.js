@@ -9,7 +9,9 @@ const militares  = require("../controllers/militaresController");
 const biometrias = require("../controllers/biometriasController");
 const recorrentes = require("../controllers/visitantesRecorrentesController");
 const civis      = require("../controllers/visitantesCivisController");
-const externos   = require("../controllers/militaresExternosController");
+const relatorios = require("../controllers/relatoriosController");
+const operacao   = require("../controllers/operacaoController");
+
 const relatorios = require("../controllers/relatoriosController");
 
 // Chaves
