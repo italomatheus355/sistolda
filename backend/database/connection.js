@@ -69,9 +69,23 @@ function initDb() {
   const schema = fs.readFileSync(SCHEMA_PATH, "utf8");
   db.exec(schema);
   migrateVisitantes();
+  migrateLogsAuditoria();
   seed();
   console.log("[SISTOLDA] Banco SQLite inicializado em", DB_PATH);
 }
+
+function migrateLogsAuditoria() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS logs_auditoria (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      modulo TEXT, acao TEXT, nip TEXT, nome TEXT, descricao TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_logs_auditoria_ts ON logs_auditoria(timestamp);
+    CREATE INDEX IF NOT EXISTS idx_logs_auditoria_nip ON logs_auditoria(nip);
+  `);
+}
+
 
 function seed() {
   const chaveCount = db.prepare("SELECT COUNT(*) AS c FROM chaves").get().c;
