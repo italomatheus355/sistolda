@@ -233,7 +233,25 @@ export const api = {
     try { return await request<ApiMilitar>(`/militares/${n}`); }
     catch { return null; }
   },
+
+  // Operação unificada — autenticação por NIP (leitor Keyboard Wedge)
+  autenticarBiometria: (body: {
+    nip: string;
+    modulo: "chaves" | "visitantes" | "materiais" | "viaturas" | "administracao" | string;
+    acao: string;
+    itens?: (number | string)[];
+    cabo?: string | null;
+    payload?: Record<string, any>;
+  }) => request<{
+    success: true;
+    nip: string;
+    nome: string;
+    descricao?: string;
+    id?: number;
+    chaves?: { id: number; numero: number; nome: string }[];
+  }>("/operacao/autenticar-biometria", { method: "POST", body: JSON.stringify(body) }),
 };
+
 
 // ============ Polling padrão para sincronização entre PCs ============
 export const SYNC_OPTIONS = {

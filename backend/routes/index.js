@@ -11,6 +11,7 @@ const recorrentes = require("../controllers/visitantesRecorrentesController");
 const civis      = require("../controllers/visitantesCivisController");
 const externos   = require("../controllers/militaresExternosController");
 const relatorios = require("../controllers/relatoriosController");
+const operacao   = require("../controllers/operacaoController");
 
 // Chaves
 router.get("/chaves", chaves.list);
@@ -29,7 +30,7 @@ router.get("/visitantes", visitantes.list);
 router.post("/visitantes", visitantes.create);
 router.post("/visitantes/:id/saida", visitantes.saida);
 
-// Visitantes Recorrentes (militares de outras forças com biometria)
+// Visitantes Recorrentes
 router.get("/visitantes-recorrentes", recorrentes.list);
 router.get("/visitantes-recorrentes/cpf/:cpf", recorrentes.getByCpf);
 router.get("/visitantes-recorrentes/:id", recorrentes.get);
@@ -37,7 +38,7 @@ router.post("/visitantes-recorrentes", recorrentes.create);
 router.put("/visitantes-recorrentes/:id", recorrentes.update);
 router.put("/visitantes-recorrentes/:id/status", recorrentes.setStatus);
 
-// Visitantes Civis (cadastro permanente)
+// Visitantes Civis
 router.get("/visitantes-civis", civis.list);
 router.get("/visitantes-civis/cpf/:cpf", civis.getByCpf);
 router.get("/visitantes-civis/rg/:rg", civis.getByRg);
@@ -45,7 +46,7 @@ router.get("/visitantes-civis/:id", civis.get);
 router.post("/visitantes-civis", civis.create);
 router.put("/visitantes-civis/:id", civis.update);
 
-// Militares Externos (cadastro permanente + biometria)
+// Militares Externos
 router.get("/militares-externos", externos.list);
 router.get("/militares-externos/cpf/:cpf", externos.getByCpf);
 router.get("/militares-externos/:id", externos.get);
@@ -77,5 +78,9 @@ router.delete("/biometrias/:id", biometrias.remove);
 // Relatórios automáticos (PDF/XLSX)
 router.post("/relatorios/gerar", relatorios.gerarHoje);
 router.post("/relatorios/gerar/:data", relatorios.gerarData);
+
+// Operação unificada — autenticação por NIP (leitor Keyboard Wedge)
+router.post("/operacao/autenticar-biometria", operacao.autenticarBiometria);
+router.get("/operacao/auditoria", operacao.listAuditoria);
 
 module.exports = router;

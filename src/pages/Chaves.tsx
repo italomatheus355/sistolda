@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Key, History, Search, Fingerprint, RotateCcw, Filter, CheckSquare, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, ApiChave, SYNC_OPTIONS, nomeDoMilitarPorNip } from "@/lib/api";
+import { api, ApiChave, SYNC_OPTIONS } from "@/lib/api";
 import { getCaboOnDuty } from "@/lib/localDb";
-import { showOperationConfirm } from "@/components/OperationConfirm";
+import { showAuthConfirm } from "@/components/AuthConfirm";
+import { BiometricCapture } from "@/components/BiometricCapture";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -17,13 +18,11 @@ const Chaves = () => {
   const queryClient = useQueryClient();
   const [selectedChave, setSelectedChave] = useState<ApiChave | null>(null);
   const [dialogType, setDialogType] = useState<"retirada" | "devolucao" | "multipla" | null>(null);
-  const [nip, setNip] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Modo seleção múltipla
   const [multiMode, setMultiMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [multiNip, setMultiNip] = useState("");
 
   // filtros
   const [fData, setFData] = useState("");
@@ -49,71 +48,47 @@ const Chaves = () => {
     queryClient.invalidateQueries({ queryKey: ["historico_chaves"] });
   };
 
-  const retiradaMutation = useMutation({
-    mutationFn: async ({ chave, nipVal, cabo }: { chave: ApiChave; nipVal: string; cabo: string }) => {
-      const militar = await nomeDoMilitarPorNip(nipVal);
-      await api.retiradaChave({ chave_id: chave.id, militar, nip: nipVal, cabo });
-      return { militar, chave };
-    },
-    onSuccess: ({ militar, chave }) => {
+  // ============ Autenticação unificada por NIP (Keyboard Wedge) ============
+  const autenticarMutation = useMutation({
+    mutationFn: async (vars: {
+      nip: string;
+      acao: "retirada" | "devolucao";
+      itens: number[];
+    }) =>
+      api.autenticarBiometria({
+        nip: vars.nip,
+        modulo: "chaves",
+        acao: vars.acao,
+        itens: vars.itens,
+        cabo: getCaboOnDuty(),
+      }),
+    onSuccess: (resp, vars) => {
       invalidateAll();
-      showOperationConfirm({
-        nome: militar,
-        acao: "retirou a chave",
-        detalhe: `Nº ${String(chave.numero).padStart(2, "0")} — ${chave.nome}`,
-        variant: "chave",
-      });
-      setDialogType(null); setSelectedChave(null); setNip("");
-    },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
-
-  const devolucaoMutation = useMutation({
-    mutationFn: async ({ chave, cabo }: { chave: ApiChave; cabo: string }) => {
-      await api.devolucaoChave({ chave_id: chave.id, cabo });
-      return chave;
-    },
-    onSuccess: (chave) => {
-      const nome = chave.militar_responsavel || "Militar";
-      invalidateAll();
-      showOperationConfirm({
-        nome,
-        acao: "devolveu a chave",
-        detalhe: `Nº ${String(chave.numero).padStart(2, "0")} — ${chave.nome}`,
-        variant: "chave",
-      });
-      setDialogType(null); setSelectedChave(null);
-    },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
-
-  const retiradaMultiplaMutation = useMutation({
-    mutationFn: async ({ ids, nipVal, cabo }: { ids: number[]; nipVal: string; cabo: string }) => {
-      const militar = await nomeDoMilitarPorNip(nipVal);
-      const selecionadas = chaves.filter((c) => ids.includes(c.id));
-      for (const chave of selecionadas) {
-        await api.retiradaChave({ chave_id: chave.id, militar, nip: nipVal, cabo });
-      }
-      return { militar, selecionadas };
-    },
-    onSuccess: ({ militar, selecionadas }) => {
-      invalidateAll();
-      const detalhe = selecionadas
-        .map((c) => `Nº ${String(c.numero).padStart(2, "0")}`)
-        .join(" • ");
-      showOperationConfirm({
-        nome: militar,
-        acao: `retirou ${selecionadas.length} chaves`,
-        detalhe,
-        variant: "chave",
+      showAuthConfirm({
+        nome: resp.nome,
+        nip: resp.nip,
+        descricao: resp.descricao,
+        modulo: "chaves",
       });
       setDialogType(null);
+      setSelectedChave(null);
       setSelectedIds([]);
-      setMultiNip("");
       setMultiMode(false);
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (e: any) =>
+      toast({ title: "Falha na autenticação", description: e.message, variant: "destructive" }),
   });
+
+  const handleNipCaptured = (nip: string) => {
+    if (autenticarMutation.isPending) return;
+    if (dialogType === "retirada" && selectedChave) {
+      autenticarMutation.mutate({ nip, acao: "retirada", itens: [selectedChave.id] });
+    } else if (dialogType === "devolucao" && selectedChave) {
+      autenticarMutation.mutate({ nip, acao: "devolucao", itens: [selectedChave.id] });
+    } else if (dialogType === "multipla" && selectedIds.length > 0) {
+      autenticarMutation.mutate({ nip, acao: "retirada", itens: selectedIds });
+    }
+  };
 
   const toggleSelect = (chave: ApiChave) => {
     if (chave.status !== "disponivel") {
@@ -132,20 +107,6 @@ const Chaves = () => {
     }
     setSelectedChave(chave);
     setDialogType(chave.status === "disponivel" ? "retirada" : "devolucao");
-    setNip("");
-  };
-
-  const handleRetirada = () => {
-    if (!nip.trim()) { toast({ title: "Erro", description: "Informe o NIP do militar.", variant: "destructive" }); return; }
-    retiradaMutation.mutate({ chave: selectedChave!, nipVal: nip, cabo: getCaboOnDuty() });
-  };
-
-  const handleDevolucao = () => devolucaoMutation.mutate({ chave: selectedChave!, cabo: getCaboOnDuty() });
-
-  const handleRetiradaMultipla = () => {
-    if (!multiNip.trim()) { toast({ title: "Erro", description: "Informe o NIP do militar.", variant: "destructive" }); return; }
-    if (selectedIds.length === 0) { toast({ title: "Erro", description: "Selecione ao menos uma chave.", variant: "destructive" }); return; }
-    retiradaMultiplaMutation.mutate({ ids: selectedIds, nipVal: multiNip, cabo: getCaboOnDuty() });
   };
 
   const filtered = chaves.filter(
@@ -211,7 +172,7 @@ const Chaves = () => {
                     disabled={selectedIds.length === 0}
                     className="gap-1.5"
                   >
-                    <Fingerprint className="w-4 h-4" /> Confirmar retirada
+                    <Fingerprint className="w-4 h-4" /> Autenticar retirada
                   </Button>
                   <Button
                     size="sm"
@@ -235,7 +196,7 @@ const Chaves = () => {
 
           {multiMode && (
             <div className="mb-3 p-2.5 rounded-md border border-primary/30 bg-primary/5 text-xs font-mono text-primary">
-              MODO SELEÇÃO MÚLTIPLA — toque nas chaves disponíveis para incluir. Apenas UMA biometria liberará todas.
+              MODO SELEÇÃO MÚLTIPLA — toque nas chaves disponíveis para incluir. Apenas UMA biometria libera todas.
             </div>
           )}
 
@@ -363,7 +324,7 @@ const Chaves = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog Retirada */}
+      {/* Dialog Retirada — captura biométrica unificada */}
       <Dialog open={dialogType === "retirada"} onOpenChange={() => setDialogType(null)}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
@@ -371,16 +332,11 @@ const Chaves = () => {
             <DialogDescription>Chave Nº {selectedChave?.numero}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-2">
-            <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">NIP DO MILITAR</label>
-              <Input value={nip} onChange={(e) => setNip(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleRetirada()} placeholder="Digite o NIP" className="bg-secondary border-border" autoFocus />
-            </div>
-            <Button className="w-full gap-2" variant="outline" disabled>
-              <Fingerprint className="w-4 h-4" /> Coletar biometria (futuro)
-            </Button>
-            <Button onClick={handleRetirada} className="w-full" disabled={retiradaMutation.isPending}>
-              {retiradaMutation.isPending ? "Registrando..." : "Confirmar retirada"}
-            </Button>
+            <BiometricCapture
+              onCapture={handleNipCaptured}
+              disabled={autenticarMutation.isPending}
+              label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
+            />
           </div>
         </DialogContent>
       </Dialog>
@@ -393,16 +349,12 @@ const Chaves = () => {
             <DialogDescription>Em uso por {selectedChave?.militar_responsavel}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-2">
-            <div className="p-3 rounded-md bg-secondary/50 border border-border">
-              <p className="text-xs text-muted-foreground font-mono">CABO AUXILIAR DE SERVIÇO</p>
-              <div className="mt-2 h-9 rounded border border-dashed border-border bg-background/50 flex items-center justify-center">
-                <span className="text-xs font-mono text-muted-foreground/60">Aguardando biometria...</span>
-              </div>
-            </div>
-            <Button onClick={handleDevolucao} className="w-full gap-2" disabled={devolucaoMutation.isPending}>
-              <Fingerprint className="w-4 h-4" />
-              {devolucaoMutation.isPending ? "Registrando..." : "Coletar biometria e confirmar devolução"}
-            </Button>
+            <BiometricCapture
+              onCapture={handleNipCaptured}
+              disabled={autenticarMutation.isPending}
+              label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
+              hint="Posicione o dedo no leitor para confirmar a devolução."
+            />
           </div>
         </DialogContent>
       </Dialog>
@@ -431,26 +383,12 @@ const Chaves = () => {
                 </div>
               ))}
             </div>
-            <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">NIP DO MILITAR</label>
-              <Input
-                value={multiNip}
-                onChange={(e) => setMultiNip(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleRetiradaMultipla()}
-                placeholder="Digite o NIP"
-                className="bg-secondary border-border"
-                autoFocus
-              />
-            </div>
-            <Button className="w-full gap-2" variant="outline" disabled>
-              <Fingerprint className="w-4 h-4" /> Coletar biometria (futuro)
-            </Button>
-            <Button onClick={handleRetiradaMultipla} className="w-full gap-2" disabled={retiradaMultiplaMutation.isPending}>
-              <Fingerprint className="w-4 h-4" />
-              {retiradaMultiplaMutation.isPending
-                ? "Registrando..."
-                : `Confirmar retirada (${selecionadasObj.length})`}
-            </Button>
+            <BiometricCapture
+              onCapture={handleNipCaptured}
+              disabled={autenticarMutation.isPending}
+              label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
+              hint={`Uma autenticação libera ${selecionadasObj.length} chave${selecionadasObj.length === 1 ? "" : "s"}.`}
+            />
           </div>
         </DialogContent>
       </Dialog>
