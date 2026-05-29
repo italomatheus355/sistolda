@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { Key, History, Search, Fingerprint, RotateCcw, Filter, CheckSquare, X } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, ApiChave, SYNC_OPTIONS, nomeDoMilitarPorNip } from "@/lib/api";
+import { api, ApiChave, SYNC_OPTIONS } from "@/lib/api";
 import { getCaboOnDuty } from "@/lib/localDb";
-import { showOperationConfirm } from "@/components/OperationConfirm";
+import { showAuthConfirm } from "@/components/AuthConfirm";
+import { BiometricCapture } from "@/components/BiometricCapture";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,17 +14,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 
+
 const Chaves = () => {
   const queryClient = useQueryClient();
   const [selectedChave, setSelectedChave] = useState<ApiChave | null>(null);
   const [dialogType, setDialogType] = useState<"retirada" | "devolucao" | "multipla" | null>(null);
-  const [nip, setNip] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
   // Modo seleção múltipla
   const [multiMode, setMultiMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
-  const [multiNip, setMultiNip] = useState("");
+
 
   // filtros
   const [fData, setFData] = useState("");
