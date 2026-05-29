@@ -72,9 +72,16 @@ router.put("/militares/:nip/biometria", militares.setBiometria);
 // Biometrias
 router.get("/biometrias", biometrias.list);
 router.get("/biometrias/nip/:nip", biometrias.getByNip);
-router.post("/biometrias", biometrias.create);
-router.put("/biometrias/:id/status", biometrias.setStatus);
-router.delete("/biometrias/:id", biometrias.remove);
+// Relatórios automáticos (PDF/XLSX)
+router.post("/relatorios/gerar", relatorios.gerarHoje);
+router.post("/relatorios/gerar/:data", relatorios.gerarData);
+
+// Operação unificada — autenticação por NIP (leitor Keyboard Wedge)
+router.post("/operacao/autenticar-biometria", operacao.autenticarBiometria);
+router.get("/operacao/auditoria", operacao.listAuditoria);
+
+module.exports = router;
+
 
 // Relatórios automáticos (PDF/XLSX)
 router.post("/relatorios/gerar", relatorios.gerarHoje);
