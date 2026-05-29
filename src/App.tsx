@@ -17,6 +17,7 @@ import Dashboard from "./pages/Dashboard";
 import Biometria from "./pages/Biometria";
 import NotFound from "./pages/NotFound";
 import { OperationConfirm } from "@/components/OperationConfirm";
+import { AuthConfirm } from "@/components/AuthConfirm";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +82,7 @@ const App = () => (
       <Toaster />
       <Sonner />
       <OperationConfirm />
+      <AuthConfirm />
       <BrowserRouter>
         <AuthProvider>
           <AppRoutes />
