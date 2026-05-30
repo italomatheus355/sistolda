@@ -7,11 +7,33 @@ const RAW_BASE =
 
 export const API_BASE = RAW_BASE.replace(/\/+$/, "");
 
+// ============ Token JWT (Bearer) ============
+const TOKEN_KEY = "sistolda:token";
+export function setAuthToken(t: string | null) {
+  if (t) localStorage.setItem(TOKEN_KEY, t);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+export function getAuthToken(): string | null {
+  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+}
+
+// Handler global para 401 — montado pelo AuthProvider
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(fn: (() => void) | null) { onUnauthorized = fn; }
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}/api${path}`, {
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-    ...init,
-  });
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    ...(init?.headers as Record<string, string> || {}),
+  };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}/api${path}`, { ...init, headers });
+  if (res.status === 401) {
+    setAuthToken(null);
+    if (onUnauthorized) onUnauthorized();
+    throw new Error("Sessão expirada. Faça login novamente.");
+  }
   if (!res.ok) {
     let msg = `HTTP ${res.status}`;
     try { const j = await res.json(); msg = j.error || msg; } catch {}
