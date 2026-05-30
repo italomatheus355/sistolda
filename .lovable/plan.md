@@ -1,109 +1,144 @@
-## Reestruturação do módulo Visitantes — Cadastro único + Identificação automática
+# Etapa Final — Segurança, Autenticação e Controle de Acesso
 
-### Objetivo
-Separar **cadastro permanente** de **registro de acesso**, permitindo identificação rápida por CPF/RG (civis) ou biometria/CPF (militares de outras forças), mantendo todo o sistema atual funcionando.
-
----
-
-### 1. Banco de dados (SQLite — `backend/database/`)
-
-Criar duas tabelas novas e adaptar a tabela de acessos:
-
-**`visitantes_civis`** (cadastro permanente)
-- id, nome, cpf (UNIQUE), rg, telefone, empresa, observacoes, created_at
-
-**`militares_externos`** (cadastro permanente)
-- id, nome, cpf (UNIQUE), posto_graduacao, forca_militar, telefone, biometria_template, biometria_leituras, created_at
-
-**`visitantes` (tabela existente — registro de acesso)**
-Já possui as colunas necessárias via migration anterior. Adicionar:
-- `civil_id` INTEGER (referência opcional a `visitantes_civis`)
-- `militar_externo_id` INTEGER (referência opcional a `militares_externos`)
-- `forca_militar` TEXT
-- `posto_graduacao` TEXT
-- `origem_identificacao` TEXT (`manual` | `cpf` | `rg` | `biometria`)
-
-A tabela `visitantes_recorrentes` criada anteriormente fica como **deprecated/legada** — não removida (compatibilidade), mas substituída pela nova estrutura mais clara.
-
-Migrations seguras com `ALTER TABLE … ADD COLUMN` e `CREATE TABLE IF NOT EXISTS`. Nenhum dado existente é perdido.
+Escopo grande, dividido em 8 frentes. A biometria centralizada já está pronta e **não será alterada** — apenas reforçada como padrão único.
 
 ---
 
-### 2. Backend (Node.js + Express)
+## 1. Autenticação JWT (backend + frontend)
 
-Novos models + controllers + rotas:
+**Backend (`backend/`):**
+- Adicionar dependências: `jsonwebtoken`, `bcryptjs`.
+- Novo controller `authController.js`:
+  - `POST /api/auth/login` — valida usuário/senha (bcrypt), retorna `{ token, user }`.
+  - `POST /api/auth/refresh` — renova token enquanto houver atividade.
+  - `POST /api/auth/logout` — invalida (lista negra em memória + auditoria).
+  - `GET /api/auth/me` — retorna usuário atual.
+- Substituir `middleware/auth.js` por validação JWT (`requireUser`, `requireRole`).
+- Secret JWT via env (`SISTOLDA_JWT_SECRET`) com fallback seguro.
+- Expiração configurável (`SISTOLDA_JWT_TTL`, default 8h).
 
-- `visitantesCivisModel.js` / controller — CRUD + `getByCpf`, `getByRg`
-- `militaresExternosModel.js` / controller — CRUD + `getByCpf`, `identifyByBiometria`
-- Atualizar `visitantesModel.create` para aceitar `civil_id` / `militar_externo_id` / `origem_identificacao`
+**Frontend (`src/`):**
+- `useAuth` passa a chamar `/api/auth/login` em vez de `localDb`.
+- Token guardado em `localStorage` (`sistolda:token`).
+- Interceptor em `src/lib/api.ts` injeta `Authorization: Bearer <token>` e trata 401 → logout + toast "Sessão expirada".
+- Auto-refresh quando faltarem <15min para expirar e houver atividade (mousemove/click).
 
-Novas rotas REST:
-```
-GET    /api/visitantes-civis
-GET    /api/visitantes-civis/cpf/:cpf
-GET    /api/visitantes-civis/rg/:rg
-POST   /api/visitantes-civis
+---
 
-GET    /api/militares-externos
-GET    /api/militares-externos/cpf/:cpf
-POST   /api/militares-externos
-POST   /api/militares-externos/identificar-biometria
+## 2. Perfis de acesso (RBAC)
+
+Roles consolidadas: `admin`, `operador`, `consulta`, `informatica`.
+
+- Migration SQLite: ampliar `users.role` CHECK e migrar roles existentes (`operacoes`→`operador`, `segorg`→`operador`, `servico`→`consulta`).
+- Matriz de permissões em `backend/middleware/permissions.js` mapeando rota → roles permitidos.
+- Aplicar `requireRole(...)` em cada rota de `backend/routes/index.js`.
+- Frontend: helper `can(action)` em `useAuth`; `AppSidebar` e botões de ação (criar/editar/excluir) ocultados conforme perfil.
+
+---
+
+## 3. Auditoria avançada
+
+Migration ampliando `logs_auditoria`:
+```sql
+ALTER TABLE logs_auditoria ADD COLUMN usuario TEXT;
+ALTER TABLE logs_auditoria ADD COLUMN perfil TEXT;
+ALTER TABLE logs_auditoria ADD COLUMN ip TEXT;
+ALTER TABLE logs_auditoria ADD COLUMN estacao TEXT;
+ALTER TABLE logs_auditoria ADD COLUMN user_agent TEXT;
 ```
 
----
-
-### 3. Frontend — `src/pages/Visitantes.tsx`
-
-Mantém uma única aba "Visitantes" (sem dividir em sub-abas). Reorganiza ações no topo:
-
-1. **Registrar entrada** (modal com 3 modos):
-   - **Civil** → digita CPF ou RG → sistema busca cadastro → preenche automaticamente → confirma destino/militar responsável → registra acesso. Se CPF não existir, oferece "Cadastrar novo civil" inline.
-   - **Militar externo** → digita CPF → idem. Se não existir, abre cadastro inline.
-   - **Visitante avulso** (modo legado) → fluxo manual atual preservado.
-
-2. **Acesso por Biometria** (botão destacado):
-   - Abre modal "leitor biométrico" → simula leitura → identifica militar externo → registra acesso automaticamente → exibe **modal grande de confirmação**:
-     ```
-     ✓ ACESSO CONFIRMADO
-     [Posto] [Nome]
-     [Força Militar]
-     [Horário]
-     ```
-
-3. **Cadastros** (gestão):
-   - Botão "Cadastrar civil" → modal com nome, CPF, RG, telefone, empresa, observações
-   - Botão "Cadastrar militar externo" → modal com nome, força, posto, CPF, telefone + captura biométrica (5 leituras)
-
-4. **Histórico** (tabela atual mantida) — adicionar coluna "Origem" mostrando como foi identificado (`CPF`, `Biometria`, `Manual`).
-
-API client (`src/lib/api.ts`) ganha tipos `ApiVisitanteCivil`, `ApiMilitarExterno` e métodos correspondentes.
+- Helper `logAuditoria` recebe `req` e extrai IP (`req.ip`), `x-estacao` header, `user-agent`, `req.user`.
+- Middleware global registra auditoria em rotas críticas (POST/PUT/DELETE).
+- Atualizar `operacaoController` para enriquecer logs com usuário operador.
+- Nova página `src/pages/Auditoria.tsx` (admin/informatica) com filtros por data/módulo/usuário/NIP.
 
 ---
 
-### 4. Compatibilidade
+## 4. Integração biométrica unificada
 
-- Tabela `visitantes_recorrentes` permanece (dados anteriores intactos).
-- Tabela `visitantes` mantém todas as colunas atuais.
-- Fluxo "visitante comum" original continua disponível como "Visitante avulso".
-- Nenhum outro módulo (Chaves, Viaturas, Material, Dashboard, Biometria, Escala) é tocado.
-- Auth, PM2, layout militar escuro, cores e rotas inalterados.
+Garantir que **Visitantes, Materiais e Viaturas** usem `BiometricCapture` + `/api/operacao/autenticar-biometria`:
+- Estender `operacaoController.autenticarBiometria` para `modulo: "materiais"` (entrega/recebimento, suporta múltiplos itens em uma leitura) e `modulo: "viaturas"` (saída/retorno).
+- Refatorar `src/pages/MaterialPage.tsx` e `src/pages/Viaturas.tsx` para usar `BiometricCapture` + `AuthConfirm` (mesmo padrão do `Chaves.tsx`).
+- Remover quaisquer fluxos paralelos que ainda pedem NIP manual.
 
 ---
 
-### Arquivos a criar/editar
+## 5. Estabilidade do SQLite
 
-**Backend (criar):**
-- `backend/models/visitantesCivisModel.js`
-- `backend/models/militaresExternosModel.js`
-- `backend/controllers/visitantesCivisController.js`
-- `backend/controllers/militaresExternosController.js`
+Em `backend/database/connection.js`, após abrir conexão:
+```js
+db.pragma("journal_mode = WAL");
+db.pragma("busy_timeout = 5000");
+db.pragma("foreign_keys = ON");
+db.pragma("synchronous = NORMAL");
+```
+- Job no `scheduler.js` rodando `PRAGMA integrity_check` diariamente (03:00) e gravando resultado em `logs_auditoria`.
 
-**Backend (editar):**
-- `backend/database/schema.sql` — novas tabelas
-- `backend/database/connection.js` — migration ALTER TABLE em `visitantes`
-- `backend/models/visitantesModel.js` — aceitar novos campos
-- `backend/routes/index.js` — novas rotas
+---
 
-**Frontend (editar):**
-- `src/lib/api.ts` — novos tipos e métodos
-- `src/pages/Visitantes.tsx` — nova UI com 3 modos + biometria + cadastros
+## 6. Dashboard operacional
+
+Refatorar `src/pages/Dashboard.tsx` com:
+- Cards: visitantes do dia/mês, chaves retiradas/pendentes, materiais emprestados, viaturas em uso.
+- Listas: últimas 10 operações e últimos 10 acessos biométricos.
+- Novo endpoint `GET /api/dashboard/resumo` agregando os contadores em SQLite.
+- Refetch automático a cada 30s via React Query.
+
+---
+
+## 7. Gerenciamento de usuários
+
+Refatorar `src/pages/Usuarios.tsx` (admin only):
+- CRUD via novas rotas `GET/POST/PUT/DELETE /api/users` (substituem `localDb`).
+- Ações: criar, editar, redefinir senha, bloquear/desbloquear, alterar perfil.
+- Coluna `bloqueado INTEGER DEFAULT 0` em `users`; login rejeita bloqueados.
+- Senhas sempre armazenadas com `bcrypt.hash` (rounds=10). Migration faz hash das senhas existentes em texto puro no primeiro start.
+
+---
+
+## 8. Backups e relatórios
+
+Sem mudanças funcionais — infra existente preservada. Apenas confirmar estrutura final:
+```
+backup_sistolda/
+  DB/
+  LOGS/
+  RELATORIOS/
+    DIARIO/
+    MENSAL/
+```
+- Ajustar `scheduler.js` para também gerar relatório mensal (último dia do mês 23:50) em `RELATORIOS/MENSAL/`.
+- Job diário de backup do `.db` (cópia segura via `db.backup()`) para `backup_sistolda/DB/YYYY-MM-DD.db`.
+- Job diário copiando `logs_auditoria` para `backup_sistolda/LOGS/YYYY-MM-DD.json`.
+
+---
+
+## Detalhes técnicos
+
+**Novas dependências backend:** `jsonwebtoken`, `bcryptjs`.
+
+**Variáveis de ambiente novas (opcionais, com defaults):**
+- `SISTOLDA_JWT_SECRET`
+- `SISTOLDA_JWT_TTL` (ex: `8h`)
+- `SISTOLDA_BACKUP_DIR` (default: rede já configurada)
+
+**Migrations seguras** (idempotentes, via `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` simulado por try/catch — SQLite não suporta nativamente).
+
+**Compatibilidade:**
+- Frontend continua React 18 + Vite + Tailwind.
+- Backend continua Node + Express + better-sqlite3.
+- Nenhuma dependência pesada adicionada; tudo síncrono e leve.
+- Biometria preservada integralmente.
+
+**Ordem de implementação:**
+1. Migrations + pragmas SQLite + bcrypt nas senhas existentes.
+2. JWT backend + middleware + rotas auth.
+3. Frontend useAuth + interceptor + tratamento 401.
+4. RBAC backend + ocultação frontend.
+5. Auditoria expandida.
+6. Unificação biométrica em Materiais/Viaturas.
+7. Dashboard + endpoint resumo.
+8. Tela de Usuários CRUD.
+9. Backups DB/LOGS + relatório mensal.
+
+Após aprovação, implemento todas as frentes em sequência.

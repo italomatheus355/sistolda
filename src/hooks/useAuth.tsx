@@ -1,8 +1,11 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import { localDb, UserAccount, UserRole, canAccess } from "@/lib/localDb";
+import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
+import { api, setAuthToken, getAuthToken, setUnauthorizedHandler } from "@/lib/api";
+import { toast } from "@/hooks/use-toast";
+
+export type UserRole = "admin" | "operador" | "consulta" | "informatica";
 
 interface SessionUser {
-  id: string;
+  id: number;
   username: string;
   role: UserRole;
 }
@@ -17,51 +20,96 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType>({
-  user: null,
-  loading: true,
-  signIn: async () => ({ error: null }),
-  signOut: async () => {},
-  isAdmin: false,
-  can: () => false,
+  user: null, loading: true,
+  signIn: async () => ({ error: null }), signOut: async () => {},
+  isAdmin: false, can: () => false,
 });
 
-const SESSION_KEY = "sistolda:session";
+// Permissões por rota do frontend
+const ROLE_ACCESS: Record<UserRole, string[]> = {
+  admin:       ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "biometria", "auditoria"],
+  informatica: ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "biometria", "auditoria"],
+  operador:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
+  consulta:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
+};
+
+export function canAccess(role: UserRole | undefined, route: string): boolean {
+  if (!role) return false;
+  return ROLE_ACCESS[role]?.includes(route) ?? false;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<SessionUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const lastActivity = useRef<number>(Date.now());
 
-  useEffect(() => {
-    localDb.list<UserAccount>("users");
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (raw) setUser(JSON.parse(raw));
-    } catch {}
-    setLoading(false);
+  const doSignOut = useCallback(async () => {
+    try { await api.logoutServer(); } catch {}
+    setAuthToken(null);
+    setUser(null);
   }, []);
 
+  // Handler global de 401
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setUser(null);
+      toast({ title: "Sessão expirada", description: "Faça login novamente.", variant: "destructive" });
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
+
+  // Verifica sessão inicial
+  useEffect(() => {
+    const token = getAuthToken();
+    if (!token) { setLoading(false); return; }
+    api.me()
+      .then(({ user }) => setUser(user as SessionUser))
+      .catch(() => setAuthToken(null))
+      .finally(() => setLoading(false));
+  }, []);
+
+  // Atividade do usuário (mousemove/keydown)
+  useEffect(() => {
+    const onAct = () => { lastActivity.current = Date.now(); };
+    window.addEventListener("mousemove", onAct);
+    window.addEventListener("keydown", onAct);
+    return () => {
+      window.removeEventListener("mousemove", onAct);
+      window.removeEventListener("keydown", onAct);
+    };
+  }, []);
+
+  // Auto-refresh enquanto houver atividade (a cada 30 min)
+  useEffect(() => {
+    if (!user) return;
+    const t = setInterval(async () => {
+      const idle = Date.now() - lastActivity.current;
+      if (idle < 30 * 60_000) {
+        try {
+          const { token } = await api.refreshSession();
+          setAuthToken(token);
+        } catch {}
+      }
+    }, 30 * 60_000);
+    return () => clearInterval(t);
+  }, [user]);
+
   const signIn = async (username: string, password: string) => {
-    const users = localDb.list<UserAccount>("users");
-    const found = users.find(
-      (u) => u.username.toLowerCase() === username.toLowerCase().trim() && u.password === password
-    );
-    if (!found) return { error: new Error("Credenciais inválidas") };
-    const sess: SessionUser = { id: found.id, username: found.username, role: found.role };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(sess));
-    setUser(sess);
-    return { error: null };
+    try {
+      const { token, user } = await api.login({ username, password });
+      setAuthToken(token);
+      setUser(user as SessionUser);
+      return { error: null };
+    } catch (e: any) {
+      return { error: new Error(e?.message || "Erro ao autenticar") };
+    }
   };
 
-  const signOut = async () => {
-    localStorage.removeItem(SESSION_KEY);
-    setUser(null);
-  };
-
-  const isAdmin = user?.role === "admin";
-  const can = (route: string) => canAccess(user?.role, route);
+  const isAdmin = user?.role === "admin" || user?.role === "informatica";
+  const can = (route: string) => canAccess(user?.role as UserRole | undefined, route);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, isAdmin, can }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signOut: doSignOut, isAdmin, can }}>
       {children}
     </AuthContext.Provider>
   );
