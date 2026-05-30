@@ -15,6 +15,7 @@ import Usuarios from "./pages/Usuarios";
 import Pdv from "./pages/Pdv";
 import Dashboard from "./pages/Dashboard";
 import Biometria from "./pages/Biometria";
+import Auditoria from "./pages/Auditoria";
 import NotFound from "./pages/NotFound";
 import { OperationConfirm } from "@/components/OperationConfirm";
 import { AuthConfirm } from "@/components/AuthConfirm";
@@ -70,6 +71,7 @@ function AppRoutes() {
         <Route path="/escala"     element={<Guard route="escala"><Escala /></Guard>} />
         <Route path="/usuarios"   element={<Guard route="usuarios"><Usuarios /></Guard>} />
         <Route path="/biometria"  element={<Guard route="biometria"><Biometria /></Guard>} />
+        <Route path="/auditoria"  element={<Guard route="auditoria"><Auditoria /></Guard>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>

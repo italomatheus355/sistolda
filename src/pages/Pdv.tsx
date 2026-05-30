@@ -22,7 +22,7 @@ const emptyMissao = (): PdvMissao => ({
 
 const PdvPage = () => {
   const { user, isAdmin } = useAuth();
-  const canEdit = isAdmin || user?.role === "operacoes";
+  const canEdit = isAdmin || user?.role === "operador";
   const queryClient = useQueryClient();
   const [date, setDate] = useState(today());
 
