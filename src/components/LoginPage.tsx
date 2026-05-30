@@ -82,7 +82,7 @@ export function LoginPage() {
 
         <div className="text-center text-[10px] text-muted-foreground mt-4 font-mono space-y-0.5">
           <p>Acesso restrito — contate o administrador</p>
-          <p className="opacity-60">admin / operacoes / segorg / servico</p>
+          <p className="opacity-60">admin / operador / consulta / informatica</p>
         </div>
       </div>
     </div>
