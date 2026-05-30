@@ -272,6 +272,42 @@ export const api = {
     id?: number;
     chaves?: { id: number; numero: number; nome: string }[];
   }>("/operacao/autenticar-biometria", { method: "POST", body: JSON.stringify(body) }),
+
+  // ===== Auth =====
+  login: (body: { username: string; password: string }) =>
+    request<{ token: string; user: { id: number; username: string; role: string } }>(
+      "/auth/login", { method: "POST", body: JSON.stringify(body) }),
+  me: () => request<{ user: { id: number; username: string; role: string } }>("/auth/me"),
+  refreshSession: () => request<{ token: string }>("/auth/refresh", { method: "POST" }),
+  logoutServer: () => request<{ ok: true }>("/auth/logout", { method: "POST" }),
+
+  // ===== Usuários =====
+  listUsers: () => request<Array<{ id: number; username: string; role: string; bloqueado: boolean; created_at: string; ultimo_acesso: string | null }>>("/users"),
+  createUser: (body: { username: string; password: string; role: string }) =>
+    request<{ id: number; ok: true }>("/users", { method: "POST", body: JSON.stringify(body) }),
+  updateUser: (id: number, body: { role?: string; bloqueado?: boolean }) =>
+    request(`/users/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  resetUserPassword: (id: number, password: string) =>
+    request(`/users/${id}/reset-password`, { method: "POST", body: JSON.stringify({ password }) }),
+  deleteUser: (id: number) => request(`/users/${id}`, { method: "DELETE" }),
+
+  // ===== Dashboard =====
+  dashboardResumo: () => request<{
+    visitantes_hoje: number; visitantes_mes: number; visitantes_ativos: number;
+    chaves_retiradas: number; chaves_pendentes_dia: number;
+    materiais_dia: number; viaturas_em_uso: number;
+    ultimas_operacoes: Array<{ id: number; timestamp: string; modulo: string; acao: string; nome: string | null; nip: string | null; descricao: string | null }>;
+    ultimos_biometricos: Array<{ id: number; timestamp: string; modulo: string; acao: string; nome: string | null; nip: string | null; descricao: string | null }>;
+  }>("/dashboard/resumo"),
+
+  // ===== Auditoria =====
+  listAuditoria: (params: { modulo?: string; usuario?: string; nip?: string; dataIni?: string; dataFim?: string; limit?: number } = {}) => {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => { if (v != null && v !== "") q.set(k, String(v)); });
+    const s = q.toString();
+    return request<Array<{ id: number; timestamp: string; modulo: string; acao: string; nip: string | null; nome: string | null; descricao: string | null; usuario: string | null; perfil: string | null; ip: string | null; estacao: string | null; user_agent: string | null }>>(
+      `/operacao/auditoria${s ? `?${s}` : ""}`);
+  },
 };
 
 
