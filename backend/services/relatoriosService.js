@@ -340,4 +340,48 @@ async function gerarRelatorioDiario(dateStr = isoDate()) {
   return { pdfPath, xlsxPath, dir: outDir, dateStr };
 }
 
-module.exports = { gerarRelatorioDiario, isoDate };
+// ---------- Relatório mensal (consolidado) ----------
+function coletarDadosMes(mesStr) {
+  const like = `${mesStr}%`;
+  const chaves = db.prepare(`
+    SELECT chave_numero, chave_nome, militar, nip, data_retirada, data_devolucao, status, cabo_retirada, cabo_devolucao
+    FROM retiradas_chaves
+    WHERE substr(data_retirada,1,7) = ? OR substr(data_devolucao,1,7) = ?
+    ORDER BY data_retirada
+  `).all(mesStr, mesStr);
+  const viaturas = db.prepare(`
+    SELECT viatura_prefixo, motorista, nip, destino, km_saida, km_retorno, km_rodado, autonomia_informada,
+           data_saida, data_retorno, status, cabo_saida, cabo_retorno
+    FROM historico_viaturas
+    WHERE substr(data_saida,1,7) = ? OR substr(data_retorno,1,7) = ?
+    ORDER BY data_saida
+  `).all(mesStr, mesStr);
+  const visitantes = db.prepare(`
+    SELECT nome, tipo, posto_graduacao, forca_militar, cpf, rg, documento, telefone, organizacao,
+           militar_responsavel, local_destino, hora_entrada, hora_saida, origem_identificacao, cabo_registro
+    FROM visitantes
+    WHERE substr(hora_entrada,1,7) = ? OR substr(hora_saida,1,7) = ?
+    ORDER BY hora_entrada
+  `).all(mesStr, mesStr);
+  const materiais = db.prepare(`
+    SELECT nome_material, militar, nip, destino, data_registro, cabo_registro
+    FROM materiais
+    WHERE substr(data_registro,1,7) = ?
+    ORDER BY data_registro
+  `).all(mesStr);
+  return { chaves, pendentesChaves: [], viaturas, visitantes, materiais };
+}
+
+async function gerarRelatorioMensal(mesStr = isoDate().slice(0, 7)) {
+  const outDir = resolveOutputDirMensal(mesStr);
+  if (!outDir) throw new Error("Sem diretório de saída mensal");
+  const dados = coletarDadosMes(mesStr);
+  const pdfPath = path.join(outDir, `relatorio_mensal_${mesStr}.pdf`);
+  const xlsxPath = path.join(outDir, `relatorio_mensal_${mesStr}.xlsx`);
+  await gerarPDF(pdfPath, mesStr, dados);
+  await gerarXLSX(xlsxPath, mesStr, dados);
+  console.log(`[Relatorios mensal] Gerados: ${pdfPath} | ${xlsxPath}`);
+  return { pdfPath, xlsxPath, dir: outDir, mesStr };
+}
+
+module.exports = { gerarRelatorioDiario, gerarRelatorioMensal, isoDate, resolveBackupDir };
