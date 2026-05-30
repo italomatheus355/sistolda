@@ -5,11 +5,11 @@ const PDFDocument = require("pdfkit");
 const ExcelJS = require("exceljs");
 const { db } = require("../database/connection");
 
-// Caminho de saída — pode ser sobrescrito por env var
+// Estrutura final: backup_sistolda/{DB,LOGS,RELATORIOS/{DIARIO,MENSAL}}
 const NETWORK_BASE =
-  process.env.SISTOLDA_RELATORIOS_DIR ||
-  "\\\\esqdhu41fs\\grupos\\informatica\\ADMINISTRATIVOS\\backup_sistolda\\relatorios";
-const LOCAL_FALLBACK = path.join(__dirname, "..", "relatorios");
+  process.env.SISTOLDA_BACKUP_DIR ||
+  "\\\\esqdhu41fs\\grupos\\informatica\\ADMINISTRATIVOS\\backup_sistolda";
+const LOCAL_FALLBACK = path.join(__dirname, "..", "backup_sistolda");
 
 function pad(n) { return String(n).padStart(2, "0"); }
 function isoDate(d = new Date()) {
@@ -24,19 +24,18 @@ function brDateTime(s) {
 
 function ensureDir(p) {
   try { fs.mkdirSync(p, { recursive: true }); return p; }
-  catch (e) {
-    console.warn("[Relatorios] Falha ao criar", p, "-", e.message);
-    return null;
-  }
+  catch (e) { console.warn("[Relatorios] Falha ao criar", p, "-", e.message); return null; }
 }
 
-function resolveOutputDir(dateStr) {
-  const tryNet = path.join(NETWORK_BASE, dateStr);
+// Resolve uma subpasta do backup (DB, LOGS, RELATORIOS/DIARIO/<data>, RELATORIOS/MENSAL/<aaaa-mm>)
+function resolveBackupDir(...segments) {
+  const tryNet = path.join(NETWORK_BASE, ...segments);
   const ok = ensureDir(tryNet);
   if (ok) return ok;
-  console.warn("[Relatorios] Usando fallback local:", LOCAL_FALLBACK);
-  return ensureDir(path.join(LOCAL_FALLBACK, dateStr));
+  return ensureDir(path.join(LOCAL_FALLBACK, ...segments));
 }
+function resolveOutputDir(dateStr) { return resolveBackupDir("RELATORIOS", "DIARIO", dateStr); }
+function resolveOutputDirMensal(mesStr) { return resolveBackupDir("RELATORIOS", "MENSAL", mesStr); }
 
 // ---------- Coleta de dados ----------
 function coletarDados(dateStr) {
