@@ -167,3 +167,15 @@ CREATE TABLE IF NOT EXISTS logs_auditoria (
 CREATE INDEX IF NOT EXISTS idx_logs_auditoria_ts ON logs_auditoria(timestamp);
 CREATE INDEX IF NOT EXISTS idx_logs_auditoria_nip ON logs_auditoria(nip);
 
+-- Cadastramento de Pessoas (Marinha, Exército, Civil)
+CREATE TABLE IF NOT EXISTS pessoas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome TEXT NOT NULL,
+  tipo TEXT NOT NULL CHECK (tipo IN ('marinha','exercito','civil')),
+  identificador TEXT UNIQUE NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_pessoas_ident ON pessoas(identificador);
+
+
+

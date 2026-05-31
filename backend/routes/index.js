@@ -15,6 +15,8 @@ const operacao    = require("../controllers/operacaoController");
 const auth        = require("../controllers/authController");
 const users       = require("../controllers/usersController");
 const dashboard   = require("../controllers/dashboardController");
+const pessoas     = require("../controllers/pessoasController");
+
 
 const { requireUser, requireRole } = require("../middleware/auth");
 
@@ -110,5 +112,12 @@ router.post("/users", requireRole(...ADM), users.create);
 router.put("/users/:id", requireRole(...ADM), users.update);
 router.post("/users/:id/reset-password", requireRole(...ADM), users.resetPassword);
 router.delete("/users/:id", requireRole(...ADM), users.remove);
+
+// Cadastramento de Pessoas (somente admin/informatica)
+router.get("/pessoas", requireRole(...ADM), pessoas.list);
+router.get("/pessoas/:id", requireRole(...ADM), pessoas.get);
+router.post("/pessoas", requireRole(...ADM), pessoas.create);
+router.put("/pessoas/:id", requireRole(...ADM), pessoas.update);
+router.delete("/pessoas/:id", requireRole(...ADM), pessoas.remove);
 
 module.exports = router;

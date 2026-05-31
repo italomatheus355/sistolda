@@ -48,8 +48,22 @@ function initDb() {
   migrateVisitantes();
   migrateLogsAuditoria();
   migrateUsers();
+  migratePessoas();
   seed();
   console.log("[SISTOLDA] Banco SQLite inicializado em", DB_PATH);
+}
+
+function migratePessoas() {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS pessoas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      nome TEXT NOT NULL,
+      tipo TEXT NOT NULL CHECK (tipo IN ('marinha','exercito','civil')),
+      identificador TEXT UNIQUE NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_pessoas_ident ON pessoas(identificador);
+  `);
 }
 
 function addColumnIfMissing(table, col, sql) {
