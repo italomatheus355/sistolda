@@ -168,6 +168,15 @@ export interface ApiMilitar {
   created_at: string;
 }
 
+export type PessoaTipo = "marinha" | "exercito" | "civil";
+export interface ApiPessoa {
+  id: number;
+  nome: string;
+  tipo: PessoaTipo;
+  identificador: string;
+  created_at: string;
+}
+
 // ============ Helpers ============
 function onlyDigits(v: string) { return (v || "").replace(/\D/g, ""); }
 
@@ -308,6 +317,22 @@ export const api = {
     return request<Array<{ id: number; timestamp: string; modulo: string; acao: string; nip: string | null; nome: string | null; descricao: string | null; usuario: string | null; perfil: string | null; ip: string | null; estacao: string | null; user_agent: string | null }>>(
       `/operacao/auditoria${s ? `?${s}` : ""}`);
   },
+
+  // ===== Cadastramento de Pessoas =====
+  listPessoas: () => request<ApiPessoa[]>("/pessoas"),
+  createPessoa: (body: { nome: string; tipo: PessoaTipo; identificador: string }) =>
+    request<{ ok: true; id: number; pessoa: ApiPessoa }>("/pessoas", { method: "POST", body: JSON.stringify(body) }),
+  updatePessoa: (id: number, body: { nome: string; tipo: PessoaTipo; identificador: string }) =>
+    request<{ ok: true; pessoa: ApiPessoa }>(`/pessoas/${id}`, { method: "PUT", body: JSON.stringify(body) }),
+  deletePessoa: (id: number) => request<{ ok: true }>(`/pessoas/${id}`, { method: "DELETE" }),
+
+  // ===== Relatórios sob demanda =====
+  gerarRelatorioHoje: () =>
+    request<{ ok: true; pdfPath: string; xlsxPath: string; dir: string; dateStr: string }>(
+      "/relatorios/gerar", { method: "POST" }),
+  gerarRelatorioData: (data: string) =>
+    request<{ ok: true; pdfPath: string; xlsxPath: string; dir: string; dateStr: string }>(
+      `/relatorios/gerar/${data}`, { method: "POST" }),
 };
 
 
