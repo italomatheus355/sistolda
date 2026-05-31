@@ -3,6 +3,7 @@
 // localiza o militar, executa a regra de negócio e registra auditoria.
 
 const Militares = require("../models/militaresModel");
+const Pessoas = require("../models/pessoasModel");
 const Chaves = require("../models/chavesModel");
 const Visitantes = require("../models/visitantesModel");
 const Materiais = require("../models/materiaisModel");
@@ -11,20 +12,34 @@ const { logAuditoria, listAuditoria } = require("../services/auditService");
 
 function onlyDigits(v) { return String(v || "").replace(/\D/g, ""); }
 
+function resolverIdentidade(nip) {
+  const militar = Militares.getByNip(nip);
+  if (militar) {
+    const posto = (militar.posto_graduacao || "").trim();
+    return { nomeFmt: posto ? `${posto} ${militar.nome}` : militar.nome, origem: "militares" };
+  }
+  const pessoa = Pessoas.getByIdentificador(nip);
+  if (pessoa) {
+    const prefixo = pessoa.tipo === "marinha" ? "MB"
+      : pessoa.tipo === "exercito" ? "EB"
+      : "Sr(a).";
+    return { nomeFmt: `${prefixo} ${pessoa.nome}`, origem: `pessoas:${pessoa.tipo}` };
+  }
+  return null;
+}
+
 exports.autenticarBiometria = (req, res, next) => {
   try {
     const { nip: nipRaw, modulo, acao, itens, cabo, payload } = req.body || {};
     const nip = onlyDigits(nipRaw);
     if (!nip) return res.status(400).json({ error: "NIP não informado." });
 
-    const militar = Militares.getByNip(nip);
-    if (!militar) {
-      logAuditoria(req, { modulo, acao, nip, descricao: "Tentativa com NIP não cadastrado." });
-      return res.status(404).json({ error: "Militar não cadastrado." });
+    const ident = resolverIdentidade(nip);
+    if (!ident) {
+      logAuditoria(req, { modulo, acao, nip, descricao: "Tentativa com identificador não cadastrado." });
+      return res.status(404).json({ error: "Identificador não cadastrado." });
     }
-
-    const posto = (militar.posto_graduacao || "").trim();
-    const nomeFmt = posto ? `${posto} ${militar.nome}` : militar.nome;
+    const nomeFmt = ident.nomeFmt;
     const caboOp = (cabo || "").trim() || null;
     let descricao = "";
 

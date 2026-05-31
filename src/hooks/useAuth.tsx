@@ -27,8 +27,8 @@ const AuthContext = createContext<AuthContextType>({
 
 // Permissões por rota do frontend
 const ROLE_ACCESS: Record<UserRole, string[]> = {
-  admin:       ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "biometria", "auditoria"],
-  informatica: ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "biometria", "auditoria"],
+  admin:       ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "pessoas", "relatorios", "auditoria"],
+  informatica: ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "pessoas", "relatorios", "auditoria"],
   operador:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
   consulta:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
 };
