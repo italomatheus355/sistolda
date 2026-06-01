@@ -1,332 +1,188 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  Users, Plus, LogOut, Eye, History, Fingerprint, ShieldCheck, CheckCircle2,
-  Loader2, Search, UserPlus, IdCard, Shield,
-} from "lucide-react";
+// SISTOLDA — Módulo de Visitantes (versão simplificada).
+// Fluxo: Registrar Entrada (biometria), Registrar Saída (lista), Cadastro de Pessoas, Histórico.
+import { useMemo, useState } from "react";
+import { Users, Plus, LogOut, History, UserPlus, Pencil, Trash2, Search } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  api, ApiVisitante, ApiVisitanteCivil, ApiMilitarExterno, SYNC_OPTIONS,
+  api, ApiVisitante, ApiPessoa, PessoaInput, PessoaTipo, SYNC_OPTIONS,
 } from "@/lib/api";
 import { getCaboOnDuty } from "@/lib/localDb";
-import { showOperationConfirm } from "@/components/OperationConfirm";
+import { showAuthConfirm } from "@/components/AuthConfirm";
+import { BiometricCapture } from "@/components/BiometricCapture";
+import { OperationalDateBanner } from "@/components/OperationalDateBanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
-type Modo = "civil" | "militar_externo" | "avulso";
-type FaseBio = "intro" | "coletando" | "sucesso";
+const onlyDigits = (v: string) => (v || "").replace(/\D/g, "");
 
-const TOTAL_LEITURAS = 5;
-const INTERVALO_MS = 900;
+const TIPO_LABEL: Record<PessoaTipo, string> = {
+  marinha: "Militar da Marinha",
+  exercito: "Militar Externo",
+  civil: "Civil",
+};
+const TIPO_BADGE: Record<PessoaTipo, "default" | "secondary" | "outline"> = {
+  marinha: "default", exercito: "secondary", civil: "outline",
+};
 
-const onlyDigits = (v: string) => v.replace(/\D/g, "");
+// "000" + últimos 4 dígitos do CPF (7 dígitos)
+function nipFromCpf(cpf: string) {
+  const c = onlyDigits(cpf);
+  if (c.length < 4) return "";
+  return "000" + c.slice(-4);
+}
 
-const Visitantes = () => {
-  const queryClient = useQueryClient();
+const EMPTY_FORM: PessoaInput & { identificador: string } = {
+  nome: "", tipo: "marinha", identificador: "", cpf: "", rg: "", telefone: "",
+};
+
+export default function Visitantes() {
+  const qc = useQueryClient();
+  const { isAdmin } = useAuth();
+
+  // === Diálogos ===
+  const [showEntrada, setShowEntrada] = useState(false);
   const [showCadastro, setShowCadastro] = useState(false);
-  const [showBioAccess, setShowBioAccess] = useState(false);
-  const [showCadCivil, setShowCadCivil] = useState(false);
-  const [showCadExterno, setShowCadExterno] = useState(false);
-  const [detalhes, setDetalhes] = useState<ApiVisitante | null>(null);
-  const [filtroData, setFiltroData] = useState("");
-
-  // ===== Form de registro de entrada =====
-  const [modo, setModo] = useState<Modo>("civil");
-  const [buscaCpf, setBuscaCpf] = useState("");
-  const [buscaRg, setBuscaRg] = useState("");
-  const [civilSel, setCivilSel] = useState<ApiVisitanteCivil | null>(null);
-  const [externoSel, setExternoSel] = useState<ApiMilitarExterno | null>(null);
   const [destino, setDestino] = useState("");
-  const [obsEntrada, setObsEntrada] = useState("");
-  const [origemId, setOrigemId] = useState<"cpf" | "rg" | "manual" | "biometria">("cpf");
 
-  // Avulso (manual)
-  const [avulsoNome, setAvulsoNome] = useState("");
-  const [avulsoDoc, setAvulsoDoc] = useState("");
-  const [avulsoTel, setAvulsoTel] = useState("");
+  // === Cadastro de Pessoas ===
+  const [pesQuery, setPesQuery] = useState("");
+  const [editing, setEditing] = useState<ApiPessoa | null>(null);
+  const [form, setForm] = useState<PessoaInput & { identificador: string }>(EMPTY_FORM);
+  const [confirmDel, setConfirmDel] = useState<ApiPessoa | null>(null);
 
-  // ===== Cadastro Civil =====
-  const [novoCivil, setNovoCivil] = useState({
-    nome: "", cpf: "", rg: "", telefone: "", empresa: "", observacoes: "",
-  });
-
-  // ===== Cadastro Militar Externo =====
-  const [novoExterno, setNovoExterno] = useState({
-    nome: "", cpf: "", posto_graduacao: "", forca_militar: "", telefone: "",
-  });
-  const [showBioCadastro, setShowBioCadastro] = useState(false);
-  const [faseBio, setFaseBio] = useState<FaseBio>("intro");
-  const [leituras, setLeituras] = useState(0);
-  const [pulse, setPulse] = useState(false);
-  const timerRef = useRef<number | null>(null);
-
-  // ===== Acesso por biometria =====
-  const [bioAcessoFase, setBioAcessoFase] = useState<"scan" | "identificado">("scan");
-  const [bioIdentificado, setBioIdentificado] = useState<ApiMilitarExterno | null>(null);
-  const [bioDestino, setBioDestino] = useState("");
-  const [bioConfirmado, setBioConfirmado] = useState<{ militar: ApiMilitarExterno; hora: string } | null>(null);
+  // === Histórico filtro ===
+  const [filtroData, setFiltroData] = useState("");
 
   const { data: visitantes = [], isLoading } = useQuery({
     queryKey: ["visitantes"], queryFn: api.listVisitantes, ...SYNC_OPTIONS,
   });
-  const { data: civis = [] } = useQuery({
-    queryKey: ["visitantes-civis"], queryFn: api.listCivis, ...SYNC_OPTIONS,
-  });
-  const { data: externos = [] } = useQuery({
-    queryKey: ["militares-externos"], queryFn: api.listExternos, ...SYNC_OPTIONS,
+  const { data: pessoas = [] } = useQuery({
+    queryKey: ["pessoas"], queryFn: api.listPessoas, ...SYNC_OPTIONS,
   });
 
-  function clearTimer() {
-    if (timerRef.current) { window.clearInterval(timerRef.current); timerRef.current = null; }
-  }
-  useEffect(() => () => clearTimer(), []);
-
-  function resetEntrada() {
-    setBuscaCpf(""); setBuscaRg(""); setCivilSel(null); setExternoSel(null);
-    setDestino(""); setObsEntrada(""); setAvulsoNome(""); setAvulsoDoc(""); setAvulsoTel("");
-    setOrigemId("cpf");
-  }
-
-  // ===== Buscas =====
-  async function buscarCivil() {
-    const cpf = onlyDigits(buscaCpf);
-    const rg = buscaRg.trim();
-    if (!cpf && !rg) {
-      toast({ title: "Informe CPF ou RG", variant: "destructive" }); return;
-    }
-    let found: ApiVisitanteCivil | null = null;
-    if (cpf) { found = await api.getCivilByCpf(cpf); if (found) setOrigemId("cpf"); }
-    if (!found && rg) { found = await api.getCivilByRg(rg); if (found) setOrigemId("rg"); }
-    if (found) {
-      setCivilSel(found);
-      toast({ title: "Visitante identificado", description: found.nome });
-    } else {
-      setCivilSel(null);
-      toast({
-        title: "Não cadastrado",
-        description: "Use 'Cadastrar Civil' abaixo para registrar permanentemente.",
+  // === Mutations ===
+  const entradaMutation = useMutation({
+    mutationFn: async (nip: string) => {
+      if (!destino.trim()) throw new Error("Informe o destino antes de capturar a biometria.");
+      return api.autenticarBiometria({
+        nip, modulo: "visitantes", acao: "entrada",
+        cabo: getCaboOnDuty(),
+        payload: { local_destino: destino.trim() },
       });
-    }
-  }
+    },
+    onSuccess: (resp) => {
+      qc.invalidateQueries({ queryKey: ["visitantes"] });
+      showAuthConfirm({ nome: resp.nome, nip: resp.nip, descricao: resp.descricao, modulo: "visitantes" });
+      setShowEntrada(false); setDestino("");
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
 
-  async function buscarExterno() {
-    const cpf = onlyDigits(buscaCpf);
-    if (!cpf) { toast({ title: "Informe CPF", variant: "destructive" }); return; }
-    const found = await api.getExternoByCpf(cpf);
-    if (found) {
-      setExternoSel(found);
-      setOrigemId("cpf");
-      toast({ title: "Militar identificado", description: found.nome });
-    } else {
-      setExternoSel(null);
-      toast({ title: "Não cadastrado", description: "Use 'Cadastrar Militar Externo'." });
-    }
-  }
+  const saidaMutation = useMutation({
+    mutationFn: (v: ApiVisitante) => api.saidaVisitante(v.id).then(() => v),
+    onSuccess: (v) => {
+      qc.invalidateQueries({ queryKey: ["visitantes"] });
+      showAuthConfirm({ nome: v.nome, nip: v.documento, descricao: `${v.nome} registrou saída do quartel.`, modulo: "visitantes" });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
 
-  // ===== Mutations de entrada =====
-  const entradaCivilMutation = useMutation({
-    mutationFn: async () => {
-      if (!civilSel) throw new Error("Selecione o civil");
-      if (!destino) throw new Error("Informe o destino");
-      await api.createVisitante({
-        nome: civilSel.nome,
-        documento: civilSel.cpf || civilSel.rg || "—",
-        militar_responsavel: "",
-        local_destino: destino,
-        observacoes: obsEntrada || null,
-        cabo_registro: getCaboOnDuty(),
-        cpf: civilSel.cpf,
-        rg: civilSel.rg,
-        telefone: civilSel.telefone,
-        organizacao: civilSel.empresa,
-        civil_id: civilSel.id,
-        tipo: "civil",
-        origem_identificacao: origemId,
-      });
+  // Pessoa create/update
+  const savePessoa = useMutation({
+    mutationFn: () => {
+      const payload: PessoaInput = {
+        nome: form.nome.trim(),
+        tipo: form.tipo,
+        identificador: form.identificador || undefined,
+        cpf: form.cpf || null,
+        rg: form.rg || null,
+        telefone: form.telefone || null,
+      };
+      return editing ? api.updatePessoa(editing.id, payload) : api.createPessoa(payload);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["visitantes"] });
-      showOperationConfirm({ nome: civilSel!.nome, acao: "entrou no quartel", variant: "visitante" });
-      setShowCadastro(false); resetEntrada();
+      qc.invalidateQueries({ queryKey: ["pessoas"] });
+      toast({ title: editing ? "Pessoa atualizada" : "Pessoa cadastrada" });
+      setForm(EMPTY_FORM); setEditing(null);
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const entradaExternoMutation = useMutation({
-    mutationFn: async () => {
-      if (!externoSel) throw new Error("Selecione o militar externo");
-      if (!destino) throw new Error("Informe o destino");
-      await api.createVisitante({
-        nome: externoSel.nome,
-        documento: externoSel.cpf || "—",
-        militar_responsavel: "",
-        local_destino: destino,
-        observacoes: obsEntrada || null,
-        cabo_registro: getCaboOnDuty(),
-        cpf: externoSel.cpf,
-        telefone: externoSel.telefone,
-        organizacao: externoSel.forca_militar,
-        forca_militar: externoSel.forca_militar,
-        posto_graduacao: externoSel.posto_graduacao,
-        militar_externo_id: externoSel.id,
-        tipo: "militar_externo",
-        origem_identificacao: origemId,
-      });
-    },
+  const removePessoa = useMutation({
+    mutationFn: (id: number) => api.deletePessoa(id),
     onSuccess: () => {
-      const nome = `${externoSel?.posto_graduacao || ""} ${externoSel?.nome || ""}`.trim();
-      queryClient.invalidateQueries({ queryKey: ["visitantes"] });
-      showOperationConfirm({ nome, acao: "entrou no quartel", variant: "visitante" });
-      setShowCadastro(false); resetEntrada();
+      qc.invalidateQueries({ queryKey: ["pessoas"] });
+      toast({ title: "Pessoa excluída" });
+      setConfirmDel(null);
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
-  const entradaAvulsoMutation = useMutation({
-    mutationFn: async () => {
-      if (!avulsoNome || !avulsoDoc || !destino) throw new Error("Preencha nome, documento e destino");
-      await api.createVisitante({
-        nome: avulsoNome,
-        documento: avulsoDoc,
-        militar_responsavel: "",
-        local_destino: destino,
-        observacoes: obsEntrada || null,
-        cabo_registro: getCaboOnDuty(),
-        telefone: avulsoTel || null,
-        tipo: "comum",
-        origem_identificacao: "manual",
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["visitantes"] });
-      showOperationConfirm({ nome: avulsoNome, acao: "entrou no quartel", variant: "visitante" });
-      setShowCadastro(false); resetEntrada();
-    },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
-
-  // ===== Cadastros permanentes =====
-  const cadastrarCivilMutation = useMutation({
-    mutationFn: async () => {
-      if (!novoCivil.nome || !novoCivil.cpf) throw new Error("Nome e CPF obrigatórios");
-      await api.createCivil({
-        nome: novoCivil.nome,
-        cpf: onlyDigits(novoCivil.cpf),
-        rg: novoCivil.rg || null,
-        telefone: novoCivil.telefone || null,
-        empresa: novoCivil.empresa || null,
-        observacoes: novoCivil.observacoes || null,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["visitantes-civis"] });
-      toast({ title: "Civil cadastrado" });
-      setShowCadCivil(false);
-      setNovoCivil({ nome: "", cpf: "", rg: "", telefone: "", empresa: "", observacoes: "" });
-    },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
-
-  const cadastrarExternoMutation = useMutation({
-    mutationFn: async () => {
-      await api.createExterno({
-        nome: novoExterno.nome,
-        cpf: onlyDigits(novoExterno.cpf),
-        posto_graduacao: novoExterno.posto_graduacao || null,
-        forca_militar: novoExterno.forca_militar || null,
-        telefone: novoExterno.telefone || null,
-        biometria_template: JSON.stringify({
-          leituras: TOTAL_LEITURAS,
-          capturadoEm: new Date().toISOString(),
-        }),
-        biometria_leituras: TOTAL_LEITURAS,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["militares-externos"] });
-      toast({ title: "Militar externo cadastrado", description: "Biometria armazenada." });
-      setShowBioCadastro(false); setShowCadExterno(false);
-      setNovoExterno({ nome: "", cpf: "", posto_graduacao: "", forca_militar: "", telefone: "" });
-      setFaseBio("intro"); setLeituras(0);
-    },
-    onError: (e: any) => {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
-      setShowBioCadastro(false); setFaseBio("intro"); setLeituras(0);
-    },
-  });
-
-  function iniciarCadastroExterno() {
-    if (!novoExterno.nome || !novoExterno.cpf || !novoExterno.forca_militar) {
-      toast({ title: "Preencha nome, CPF e força", variant: "destructive" }); return;
-    }
-    setFaseBio("intro"); setLeituras(0); setShowBioCadastro(true);
+  function openEditPessoa(p: ApiPessoa) {
+    setEditing(p);
+    setForm({
+      nome: p.nome, tipo: p.tipo, identificador: p.identificador,
+      cpf: p.cpf || "", rg: p.rg || "", telefone: p.telefone || "",
+    });
   }
 
-  function iniciarColetas() {
-    setFaseBio("coletando"); setLeituras(0);
-    let count = 0;
-    timerRef.current = window.setInterval(() => {
-      setPulse(true); window.setTimeout(() => setPulse(false), 300);
-      count += 1; setLeituras(count);
-      if (count >= TOTAL_LEITURAS) {
-        clearTimer();
-        window.setTimeout(() => {
-          setFaseBio("sucesso");
-          cadastrarExternoMutation.mutate();
-        }, 350);
+  function handleFormChange(next: Partial<PessoaInput & { identificador: string }>) {
+    setForm((prev) => {
+      const merged = { ...prev, ...next };
+      // Auto-gerar NIP para externo/civil a partir do CPF, caso o usuário não tenha digitado manualmente.
+      if (merged.tipo !== "marinha") {
+        if (merged.cpf && (!merged.identificador || merged.identificador === nipFromCpf(prev.cpf || ""))) {
+          merged.identificador = nipFromCpf(merged.cpf);
+        }
       }
-    }, INTERVALO_MS);
+      return merged;
+    });
   }
 
-  // ===== Acesso biométrico =====
-  const acessoBioMutation = useMutation({
-    mutationFn: async () => {
-      if (!bioIdentificado) throw new Error("Nenhum militar identificado");
-      const dst = bioDestino || "Manutenção / Apoio técnico";
-      await api.createVisitante({
-        nome: bioIdentificado.nome,
-        documento: bioIdentificado.cpf || "—",
-        militar_responsavel: "",
-        local_destino: dst,
-        cabo_registro: getCaboOnDuty(),
-        cpf: bioIdentificado.cpf,
-        telefone: bioIdentificado.telefone,
-        organizacao: bioIdentificado.forca_militar,
-        forca_militar: bioIdentificado.forca_militar,
-        posto_graduacao: bioIdentificado.posto_graduacao,
-        militar_externo_id: bioIdentificado.id,
-        tipo: "militar_externo",
-        origem_identificacao: "biometria",
-      });
-      return bioIdentificado;
-    },
-    onSuccess: (m) => {
-      queryClient.invalidateQueries({ queryKey: ["visitantes"] });
-      setBioConfirmado({ militar: m, hora: new Date().toLocaleString("pt-BR") });
-      setShowBioAccess(false); setBioAcessoFase("scan"); setBioIdentificado(null); setBioDestino("");
-      window.setTimeout(() => setBioConfirmado(null), 5000);
-    },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
-
-  function simularIdentificacao(m: ApiMilitarExterno) {
-    setBioIdentificado(m); setBioAcessoFase("identificado");
+  function submitPessoa(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.nome.trim()) { toast({ title: "Nome obrigatório", variant: "destructive" }); return; }
+    if (form.tipo === "marinha" && !/^\d{4,10}$/.test(form.identificador || "")) {
+      toast({ title: "NIP inválido", description: "Para Militar da Marinha, informe o NIP real.", variant: "destructive" });
+      return;
+    }
+    if (form.tipo !== "marinha" && !/^\d{11}$/.test(onlyDigits(form.cpf || ""))) {
+      toast({ title: "CPF inválido", description: "Informe os 11 dígitos do CPF.", variant: "destructive" });
+      return;
+    }
+    savePessoa.mutate();
   }
 
+  // === Dados derivados ===
   const presentes = visitantes.filter((v) => !v.hora_saida);
-  const historico = filtroData
-    ? visitantes.filter((v) => v.hora_entrada.startsWith(filtroData))
-    : visitantes;
+  const historico = filtroData ? visitantes.filter((v) => v.hora_entrada.startsWith(filtroData)) : visitantes;
+  const pessoasFiltradas = useMemo(() => {
+    const q = pesQuery.trim().toLowerCase();
+    if (!q) return pessoas;
+    return pessoas.filter((p) =>
+      p.nome.toLowerCase().includes(q) ||
+      p.identificador.includes(q) ||
+      (p.cpf || "").includes(q) ||
+      TIPO_LABEL[p.tipo].toLowerCase().includes(q),
+    );
+  }, [pessoas, pesQuery]);
 
   return (
     <div>
+      <OperationalDateBanner />
+
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -338,26 +194,14 @@ const Visitantes = () => {
             )}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {civis.length} civis · {externos.length} militares externos cadastrados
+            {pessoas.length} pessoas cadastradas · entrada por biometria (NIP)
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" onClick={() => setShowCadCivil(true)} className="gap-2">
-            <UserPlus className="w-4 h-4" /> Cadastrar Civil
+          <Button variant="outline" onClick={() => { setForm(EMPTY_FORM); setEditing(null); setShowCadastro(true); }} className="gap-2">
+            <UserPlus className="w-4 h-4" /> Cadastro de Pessoas
           </Button>
-          <Button variant="outline" onClick={() => setShowCadExterno(true)} className="gap-2">
-            <Shield className="w-4 h-4" /> Cadastrar Militar Externo
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => { setShowBioAccess(true); setBioAcessoFase("scan"); setBioIdentificado(null); }}
-            className="gap-2"
-            disabled={externos.length === 0}
-            title={externos.length === 0 ? "Nenhum militar externo cadastrado" : "Acesso por biometria"}
-          >
-            <Fingerprint className="w-4 h-4" /> Acesso por Biometria
-          </Button>
-          <Button onClick={() => { resetEntrada(); setModo("civil"); setShowCadastro(true); }} className="gap-2">
+          <Button onClick={() => { setDestino(""); setShowEntrada(true); }} className="gap-2">
             <Plus className="w-4 h-4" /> Registrar Entrada
           </Button>
         </div>
@@ -365,7 +209,9 @@ const Visitantes = () => {
 
       <Tabs defaultValue="ativos">
         <TabsList className="bg-secondary mb-6">
-          <TabsTrigger value="ativos" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">No Quartel</TabsTrigger>
+          <TabsTrigger value="ativos" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+            No Quartel
+          </TabsTrigger>
           <TabsTrigger value="historico" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
             <History className="w-3.5 h-3.5 mr-1.5" /> Histórico
           </TabsTrigger>
@@ -374,11 +220,9 @@ const Visitantes = () => {
         <TabsContent value="ativos">
           <VisitantesTable
             rows={presentes} isLoading={isLoading}
-            onSaida={(v) => api.saidaVisitante(v.id).then(() => {
-              queryClient.invalidateQueries({ queryKey: ["visitantes"] });
-              showOperationConfirm({ nome: v.nome, acao: "saiu do quartel", variant: "visitante" });
-            })}
-            onDetalhes={setDetalhes}
+            onSaida={(v) => saidaMutation.mutate(v)}
+            saidaPending={saidaMutation.isPending}
+            showSaidaBtn
           />
         </TabsContent>
 
@@ -388,473 +232,265 @@ const Visitantes = () => {
             <Input type="date" value={filtroData} onChange={(e) => setFiltroData(e.target.value)} className="bg-secondary border-border w-44" />
             {filtroData && <Button size="sm" variant="outline" onClick={() => setFiltroData("")}>Limpar</Button>}
           </div>
-          <VisitantesTable
-            rows={historico} isLoading={isLoading}
-            onSaida={(v) => api.saidaVisitante(v.id).then(() => {
-              queryClient.invalidateQueries({ queryKey: ["visitantes"] });
-              showOperationConfirm({ nome: v.nome, acao: "saiu do quartel", variant: "visitante" });
-            })}
-            onDetalhes={setDetalhes}
-          />
+          <VisitantesTable rows={historico} isLoading={isLoading} />
         </TabsContent>
       </Tabs>
 
       {/* ============ Registrar Entrada ============ */}
-      <Dialog open={showCadastro} onOpenChange={(v) => { setShowCadastro(v); if (!v) resetEntrada(); }}>
-        <DialogContent className="bg-card border-border max-w-xl">
+      <Dialog open={showEntrada} onOpenChange={(v) => { setShowEntrada(v); if (!v) setDestino(""); }}>
+        <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Users className="w-5 h-5 text-primary" /> Registrar Entrada</DialogTitle>
-            <DialogDescription>Identifique o visitante e registre o acesso.</DialogDescription>
+            <DialogDescription>Informe o destino e posicione o dedo no leitor biométrico.</DialogDescription>
           </DialogHeader>
-
           <div className="space-y-4 mt-2">
-            <RadioGroup
-              value={modo}
-              onValueChange={(v) => { setModo(v as Modo); setCivilSel(null); setExternoSel(null); }}
-              className="grid grid-cols-3 gap-2"
-            >
-              <ModoCard active={modo === "civil"} value="civil" icon={<IdCard className="w-3.5 h-3.5" />} label="Civil" sub="CPF / RG" />
-              <ModoCard active={modo === "militar_externo"} value="militar_externo" icon={<Shield className="w-3.5 h-3.5" />} label="Militar Externo" sub="CPF + Biometria" />
-              <ModoCard active={modo === "avulso"} value="avulso" icon={<Plus className="w-3.5 h-3.5" />} label="Avulso" sub="Sem cadastro" />
-            </RadioGroup>
-
-            {modo === "civil" && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
-                  <Field label="CPF" value={buscaCpf} onChange={(v) => setBuscaCpf(onlyDigits(v).slice(0, 11))} placeholder="00000000000" />
-                  <Field label="OU RG" value={buscaRg} onChange={setBuscaRg} placeholder="RG" />
-                  <Button onClick={buscarCivil} variant="outline" className="gap-2"><Search className="w-4 h-4" /> Buscar</Button>
-                </div>
-                {civilSel ? (
-                  <div className="rounded-md border border-status-available/40 bg-status-available/5 p-3 space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs font-mono text-status-available">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> IDENTIFICADO ({origemId.toUpperCase()})
-                    </div>
-                    <Row k="Nome" v={civilSel.nome} />
-                    <Row k="CPF" v={civilSel.cpf || "—"} />
-                    <Row k="RG" v={civilSel.rg || "—"} />
-                    <Row k="Telefone" v={civilSel.telefone || "—"} />
-                    <Row k="Empresa" v={civilSel.empresa || "—"} />
-                  </div>
-                ) : (
-                  <p className="text-xs font-mono text-muted-foreground">
-                    Digite CPF ou RG e clique em buscar. Visitantes não cadastrados podem ser registrados via "Cadastrar Civil".
-                  </p>
-                )}
-                <Field label="DESTINO *" value={destino} onChange={setDestino} placeholder="Local de destino" />
-                <Field label="OBSERVAÇÕES" value={obsEntrada} onChange={setObsEntrada} placeholder="Opcional" />
-                <Button
-                  onClick={() => entradaCivilMutation.mutate()}
-                  disabled={!civilSel || !destino || entradaCivilMutation.isPending}
-                  className="w-full gap-2"
-                ><ShieldCheck className="w-4 h-4" /> Registrar Entrada</Button>
-              </div>
-            )}
-
-            {modo === "militar_externo" && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
-                  <Field label="CPF" value={buscaCpf} onChange={(v) => setBuscaCpf(onlyDigits(v).slice(0, 11))} placeholder="00000000000" />
-                  <Button onClick={buscarExterno} variant="outline" className="gap-2"><Search className="w-4 h-4" /> Buscar</Button>
-                </div>
-                {externoSel ? (
-                  <div className="rounded-md border border-status-available/40 bg-status-available/5 p-3 space-y-1.5">
-                    <div className="flex items-center gap-2 text-xs font-mono text-status-available">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> IDENTIFICADO (CPF)
-                    </div>
-                    <Row k="Nome" v={`${externoSel.posto_graduacao || ""} ${externoSel.nome}`.trim()} />
-                    <Row k="Força" v={externoSel.forca_militar || "—"} />
-                    <Row k="CPF" v={externoSel.cpf || "—"} />
-                    <Row k="Telefone" v={externoSel.telefone || "—"} />
-                    <Row k="Biometria" v={externoSel.biometria_leituras > 0 ? "Cadastrada" : "Não cadastrada"} />
-                  </div>
-                ) : (
-                  <p className="text-xs font-mono text-muted-foreground">
-                    Digite o CPF do militar. Para primeiro acesso use "Cadastrar Militar Externo".
-                  </p>
-                )}
-                <Field label="DESTINO *" value={destino} onChange={setDestino} placeholder="Local de destino" />
-                <Field label="OBSERVAÇÕES" value={obsEntrada} onChange={setObsEntrada} placeholder="Opcional" />
-                <Button
-                  onClick={() => entradaExternoMutation.mutate()}
-                  disabled={!externoSel || !destino || entradaExternoMutation.isPending}
-                  className="w-full gap-2"
-                ><ShieldCheck className="w-4 h-4" /> Registrar Entrada</Button>
-              </div>
-            )}
-
-            {modo === "avulso" && (
-              <div className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <Field label="NOME COMPLETO *" value={avulsoNome} onChange={setAvulsoNome} placeholder="Nome do visitante" />
-                  <Field label="DOCUMENTO *" value={avulsoDoc} onChange={setAvulsoDoc} placeholder="RG ou CPF" />
-                  <Field label="TELEFONE / NÚMERO" value={avulsoTel} onChange={setAvulsoTel} placeholder="(Opcional)" />
-                  <Field label="DESTINO *" value={destino} onChange={setDestino} placeholder="Local de destino" />
-                </div>
-                <Field label="OBSERVAÇÕES" value={obsEntrada} onChange={setObsEntrada} placeholder="Opcional" />
-                <Button
-                  onClick={() => entradaAvulsoMutation.mutate()}
-                  disabled={entradaAvulsoMutation.isPending}
-                  className="w-full gap-2"
-                ><ShieldCheck className="w-4 h-4" /> Registrar Entrada</Button>
-              </div>
-            )}
+            <div>
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">DESTINO *</Label>
+              <Input
+                value={destino}
+                onChange={(e) => setDestino(e.target.value)}
+                placeholder="Local de destino dentro do quartel"
+                className="bg-secondary border-border"
+                autoFocus
+              />
+            </div>
+            <BiometricCapture
+              onCapture={(nip) => entradaMutation.mutate(nip)}
+              disabled={entradaMutation.isPending || !destino.trim()}
+              label={entradaMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
+              hint={destino.trim()
+                ? "Posicione o dedo no leitor — o NIP será capturado automaticamente."
+                : "Preencha o destino antes de capturar a biometria."}
+              autoRefocus={!!destino.trim()}
+            />
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ============ Cadastro Civil ============ */}
-      <Dialog open={showCadCivil} onOpenChange={setShowCadCivil}>
-        <DialogContent className="bg-card border-border max-w-lg">
+      {/* ============ Cadastro de Pessoas ============ */}
+      <Dialog open={showCadastro} onOpenChange={(v) => { setShowCadastro(v); if (!v) { setForm(EMPTY_FORM); setEditing(null); } }}>
+        <DialogContent className="bg-card border-border max-w-4xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><UserPlus className="w-5 h-5 text-primary" /> Cadastrar Civil</DialogTitle>
-            <DialogDescription>Cadastro permanente. Será identificado automaticamente em visitas futuras.</DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-3 mt-2">
-            <Field label="NOME COMPLETO *" value={novoCivil.nome} onChange={(v) => setNovoCivil({ ...novoCivil, nome: v })} placeholder="Nome" />
-            <Field label="CPF *" value={novoCivil.cpf} onChange={(v) => setNovoCivil({ ...novoCivil, cpf: onlyDigits(v).slice(0, 11) })} placeholder="00000000000" />
-            <Field label="RG" value={novoCivil.rg} onChange={(v) => setNovoCivil({ ...novoCivil, rg: v })} placeholder="RG" />
-            <Field label="TELEFONE" value={novoCivil.telefone} onChange={(v) => setNovoCivil({ ...novoCivil, telefone: v })} placeholder="(Opcional)" />
-            <div className="col-span-2"><Field label="EMPRESA" value={novoCivil.empresa} onChange={(v) => setNovoCivil({ ...novoCivil, empresa: v })} placeholder="(Opcional)" /></div>
-            <div className="col-span-2"><Field label="OBSERVAÇÕES" value={novoCivil.observacoes} onChange={(v) => setNovoCivil({ ...novoCivil, observacoes: v })} placeholder="(Opcional)" /></div>
-          </div>
-          <Button onClick={() => cadastrarCivilMutation.mutate()} disabled={cadastrarCivilMutation.isPending} className="w-full mt-3 gap-2">
-            <UserPlus className="w-4 h-4" /> Salvar Cadastro
-          </Button>
-        </DialogContent>
-      </Dialog>
-
-      {/* ============ Cadastro Militar Externo ============ */}
-      <Dialog open={showCadExterno} onOpenChange={setShowCadExterno}>
-        <DialogContent className="bg-card border-border max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Shield className="w-5 h-5 text-primary" /> Cadastrar Militar Externo</DialogTitle>
-            <DialogDescription>Cadastro permanente com biometria. Identificado por CPF ou biometria.</DialogDescription>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-3 mt-2">
-            <Field label="NOME COMPLETO *" value={novoExterno.nome} onChange={(v) => setNovoExterno({ ...novoExterno, nome: v })} placeholder="Nome" />
-            <Field label="CPF *" value={novoExterno.cpf} onChange={(v) => setNovoExterno({ ...novoExterno, cpf: onlyDigits(v).slice(0, 11) })} placeholder="00000000000" />
-            <Field label="POSTO / GRADUAÇÃO" value={novoExterno.posto_graduacao} onChange={(v) => setNovoExterno({ ...novoExterno, posto_graduacao: v })} placeholder="Ex.: Cap, Sgt" />
-            <Field label="FORÇA MILITAR *" value={novoExterno.forca_militar} onChange={(v) => setNovoExterno({ ...novoExterno, forca_militar: v })} placeholder="Ex.: Exército - 5º BIS" />
-            <div className="col-span-2"><Field label="TELEFONE" value={novoExterno.telefone} onChange={(v) => setNovoExterno({ ...novoExterno, telefone: v })} placeholder="(Opcional)" /></div>
-          </div>
-          <Button onClick={iniciarCadastroExterno} className="w-full mt-3 gap-2">
-            <Fingerprint className="w-4 h-4" /> Cadastrar e coletar biometria
-          </Button>
-        </DialogContent>
-      </Dialog>
-
-      {/* ============ Coleta biométrica (cadastro) ============ */}
-      <Dialog
-        open={showBioCadastro}
-        onOpenChange={(v) => {
-          if (!v && faseBio === "coletando") return;
-          setShowBioCadastro(v);
-          if (!v) { clearTimer(); setFaseBio("intro"); setLeituras(0); }
-        }}
-      >
-        <DialogContent className="bg-card border-border max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-mono tracking-widest text-sm">
-              <Fingerprint className="w-4 h-4 text-primary" /> COLETA BIOMÉTRICA
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-primary" /> Cadastro de Pessoas
             </DialogTitle>
-            <DialogDescription className="font-mono text-xs">
-              {novoExterno.nome} · {novoExterno.forca_militar}
+            <DialogDescription>
+              Marinha, Exército e Civil. Para militares externos e civis, o NIP é gerado automaticamente como
+              <span className="font-mono"> 000 + 4 últimos dígitos do CPF</span>.
             </DialogDescription>
           </DialogHeader>
 
-          {faseBio === "intro" && (
-            <div className="space-y-5 py-2 animate-fade-in">
-              <div className="flex flex-col items-center text-center gap-3">
-                <div className="w-20 h-20 rounded-full border-2 border-primary/40 flex items-center justify-center bg-primary/5">
-                  <Fingerprint className="w-10 h-10 text-primary" />
-                </div>
-                <p className="text-sm">
-                  Realize <span className="font-bold text-primary">{TOTAL_LEITURAS} coletas</span> da biometria.
-                </p>
-                <p className="text-xs font-mono text-muted-foreground tracking-wide">
-                  POSICIONE O DEDO NO LEITOR A CADA COLETA
-                </p>
-              </div>
-              <Button onClick={iniciarColetas} className="w-full gap-2">
-                <Fingerprint className="w-4 h-4" /> Iniciar Coleta
-              </Button>
-            </div>
-          )}
-
-          {faseBio === "coletando" && (
-            <div className="space-y-5 py-2 animate-fade-in">
-              <div className="flex flex-col items-center gap-3">
-                <div className={`w-24 h-24 rounded-full border-2 border-primary flex items-center justify-center transition-all ${pulse ? "scale-110 bg-primary/20" : "bg-primary/5"}`}>
-                  <Fingerprint className={`w-12 h-12 text-primary ${pulse ? "" : "animate-pulse"}`} />
-                </div>
-                <div className="text-center">
-                  <div className="text-xs font-mono tracking-widest text-muted-foreground flex items-center justify-center gap-2">
-                    <Loader2 className="w-3 h-3 animate-spin" /> CAPTURANDO LEITURA
-                  </div>
-                  <div className="text-2xl font-bold font-mono mt-1">{leituras}/{TOTAL_LEITURAS}</div>
-                </div>
-              </div>
-              <div className="h-2 w-full bg-muted rounded overflow-hidden">
-                <div className="h-full bg-primary transition-all duration-300" style={{ width: `${(leituras / TOTAL_LEITURAS) * 100}%` }} />
-              </div>
-            </div>
-          )}
-
-          {faseBio === "sucesso" && (
-            <div className="space-y-5 py-2 text-center animate-scale-in">
-              <div className="w-20 h-20 mx-auto rounded-full border-2 border-status-available bg-status-available/10 flex items-center justify-center">
-                <CheckCircle2 className="w-10 h-10 text-status-available" />
-              </div>
-              <p className="text-base font-semibold">Cadastro concluído.</p>
-              {cadastrarExternoMutation.isPending && (
-                <p className="text-xs font-mono text-muted-foreground">Salvando...</p>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ============ Acesso por Biometria ============ */}
-      <Dialog open={showBioAccess} onOpenChange={(v) => { setShowBioAccess(v); if (!v) { setBioAcessoFase("scan"); setBioIdentificado(null); setBioDestino(""); } }}>
-        <DialogContent className="bg-card border-border max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 font-mono tracking-widest text-sm">
-              <Fingerprint className="w-4 h-4 text-primary" /> ACESSO POR BIOMETRIA
-            </DialogTitle>
-            <DialogDescription className="font-mono text-xs">
-              IDENTIFIQUE O MILITAR EXTERNO
-            </DialogDescription>
-          </DialogHeader>
-
-          {bioAcessoFase === "scan" && (
-            <div className="space-y-5 py-2 animate-fade-in">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-24 h-24 rounded-full border-2 border-primary flex items-center justify-center bg-primary/5 animate-pulse">
-                  <Fingerprint className="w-12 h-12 text-primary" />
-                </div>
-                <p className="text-xs font-mono tracking-widest text-muted-foreground">
-                  AGUARDANDO LEITURA BIOMÉTRICA
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs font-mono text-muted-foreground">
-                  IDENTIFICAÇÃO MANUAL (HARDWARE FUTURO)
-                </Label>
-                <Select onValueChange={(id) => {
-                  const m = externos.find((x) => String(x.id) === id);
-                  if (m) simularIdentificacao(m);
-                }}>
-                  <SelectTrigger className="bg-secondary border-border">
-                    <SelectValue placeholder="Selecione o militar..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {externos.map((m) => (
-                      <SelectItem key={m.id} value={String(m.id)}>
-                        {m.posto_graduacao ? `${m.posto_graduacao} ` : ""}{m.nome} {m.forca_militar ? `· ${m.forca_militar}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] font-mono text-muted-foreground">
-                  Quando o leitor físico for integrado, esta etapa será automática.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {bioAcessoFase === "identificado" && bioIdentificado && (
-            <div className="space-y-4 py-2 animate-scale-in">
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-16 h-16 rounded-full border-2 border-status-available bg-status-available/10 flex items-center justify-center">
-                  <CheckCircle2 className="w-8 h-8 text-status-available" />
-                </div>
-                <p className="text-xs font-mono tracking-widest text-status-available">MILITAR IDENTIFICADO</p>
-              </div>
-              <div className="rounded-md border border-border bg-muted/30 px-4 py-3 text-sm space-y-1.5">
-                <Row k="Nome" v={`${bioIdentificado.posto_graduacao || ""} ${bioIdentificado.nome}`.trim()} />
-                <Row k="Força" v={bioIdentificado.forca_militar || "—"} />
-                <Row k="CPF" v={bioIdentificado.cpf || "—"} />
-                <Row k="Telefone" v={bioIdentificado.telefone || "—"} />
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1.2fr] gap-5 mt-2">
+            {/* Formulário */}
+            <form onSubmit={submitPessoa} className="space-y-3">
+              <div>
+                <Label className="text-xs font-mono text-muted-foreground">NOME *</Label>
+                <Input value={form.nome} onChange={(e) => handleFormChange({ nome: e.target.value })} className="bg-secondary border-border" />
               </div>
               <div>
-                <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">DESTINO</Label>
+                <Label className="text-xs font-mono text-muted-foreground">CATEGORIA *</Label>
+                <Select value={form.tipo} onValueChange={(t) => handleFormChange({ tipo: t as PessoaTipo, identificador: t === "marinha" ? form.identificador : nipFromCpf(form.cpf || "") })}>
+                  <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="marinha">Militar da Marinha</SelectItem>
+                    <SelectItem value="exercito">Militar Externo</SelectItem>
+                    <SelectItem value="civil">Civil</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs font-mono text-muted-foreground">CPF</Label>
+                  <Input
+                    value={form.cpf || ""}
+                    onChange={(e) => handleFormChange({ cpf: onlyDigits(e.target.value).slice(0, 11) })}
+                    placeholder="00000000000"
+                    className="bg-secondary border-border font-mono"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs font-mono text-muted-foreground">RG</Label>
+                  <Input
+                    value={form.rg || ""}
+                    onChange={(e) => handleFormChange({ rg: e.target.value })}
+                    className="bg-secondary border-border"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs font-mono text-muted-foreground">TELEFONE</Label>
                 <Input
-                  value={bioDestino}
-                  onChange={(e) => setBioDestino(e.target.value)}
-                  placeholder="Manutenção / Apoio técnico"
+                  value={form.telefone || ""}
+                  onChange={(e) => handleFormChange({ telefone: e.target.value })}
                   className="bg-secondary border-border"
                 />
               </div>
-              <Button
-                onClick={() => acessoBioMutation.mutate()}
-                className="w-full gap-2"
-                disabled={acessoBioMutation.isPending}
-              >
-                <CheckCircle2 className="w-4 h-4" /> Confirmar Entrada
-              </Button>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ============ Modal grande de confirmação biométrica ============ */}
-      <Dialog open={!!bioConfirmado} onOpenChange={(o) => !o && setBioConfirmado(null)}>
-        <DialogContent className="bg-card border-status-available max-w-lg">
-          <div className="text-center py-6 space-y-4 animate-scale-in">
-            <div className="w-24 h-24 mx-auto rounded-full border-4 border-status-available bg-status-available/10 flex items-center justify-center">
-              <CheckCircle2 className="w-14 h-14 text-status-available" />
-            </div>
-            <div className="text-3xl font-bold tracking-wider text-status-available">ACESSO CONFIRMADO</div>
-            {bioConfirmado && (
-              <>
-                <div className="text-2xl font-bold">
-                  {bioConfirmado.militar.posto_graduacao} {bioConfirmado.militar.nome}
+              <div>
+                <Label className="text-xs font-mono text-muted-foreground">
+                  NIP {form.tipo === "marinha" ? "(real, obrigatório)" : "(gerado automaticamente)"}
+                </Label>
+                <Input
+                  value={form.identificador}
+                  onChange={(e) => handleFormChange({ identificador: onlyDigits(e.target.value).slice(0, 10) })}
+                  placeholder={form.tipo === "marinha" ? "NIP" : "000XXXX"}
+                  className="bg-secondary border-border font-mono"
+                  readOnly={form.tipo !== "marinha"}
+                />
+                {form.tipo !== "marinha" && (
+                  <p className="text-[10px] font-mono text-muted-foreground mt-1">
+                    Será gerado automaticamente a partir do CPF.
+                  </p>
+                )}
+              </div>
+              <DialogFooter className="!flex !justify-between !items-center pt-3 mt-2 border-t border-border">
+                {editing && (
+                  <Button type="button" variant="ghost" onClick={() => { setEditing(null); setForm(EMPTY_FORM); }}>
+                    Limpar
+                  </Button>
+                )}
+                <div className="flex gap-2 ml-auto">
+                  <Button type="submit" disabled={savePessoa.isPending} className="gap-2">
+                    <UserPlus className="w-4 h-4" />
+                    {savePessoa.isPending ? "Salvando..." : editing ? "Atualizar" : "Cadastrar"}
+                  </Button>
                 </div>
-                <div className="text-base text-muted-foreground">{bioConfirmado.militar.forca_militar}</div>
-                <div className="text-sm font-mono text-muted-foreground pt-2 border-t border-border">{bioConfirmado.hora}</div>
-              </>
-            )}
+              </DialogFooter>
+            </form>
+
+            {/* Lista de pessoas */}
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={pesQuery}
+                  onChange={(e) => setPesQuery(e.target.value)}
+                  placeholder="Buscar nome, NIP, CPF..."
+                  className="pl-8 bg-secondary border-border"
+                />
+              </div>
+              <div className="border border-border rounded-md max-h-[420px] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nome</TableHead>
+                      <TableHead>Categoria</TableHead>
+                      <TableHead>NIP</TableHead>
+                      <TableHead className="w-20 text-right">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pessoasFiltradas.length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-xs text-muted-foreground py-6 font-mono">
+                          NENHUMA PESSOA
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {pessoasFiltradas.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.nome}</TableCell>
+                        <TableCell>
+                          <Badge variant={TIPO_BADGE[p.tipo]}>{TIPO_LABEL[p.tipo]}</Badge>
+                        </TableCell>
+                        <TableCell className="font-mono">{p.identificador}</TableCell>
+                        <TableCell className="text-right">
+                          <Button size="icon" variant="ghost" onClick={() => openEditPessoa(p)} disabled={!isAdmin}>
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => setConfirmDel(p)} disabled={!isAdmin}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {!isAdmin && (
+                <p className="text-[10px] font-mono text-muted-foreground">
+                  Edição e exclusão restritas ao perfil administrador.
+                </p>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* ============ Detalhes ============ */}
-      <Dialog open={!!detalhes} onOpenChange={(o) => !o && setDetalhes(null)}>
-        <DialogContent className="bg-card border-border max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Eye className="w-5 h-5 text-primary" /> Detalhes do Visitante</DialogTitle>
-          </DialogHeader>
-          {detalhes && (
-            <div className="space-y-2 text-sm mt-2">
-              <Row k="Tipo" v={tipoLabel(detalhes.tipo)} />
-              <Row k="Nome" v={detalhes.nome} />
-              {detalhes.posto_graduacao && <Row k="Posto" v={detalhes.posto_graduacao} />}
-              {detalhes.forca_militar && <Row k="Força" v={detalhes.forca_militar} />}
-              <Row k="Documento" v={detalhes.documento} />
-              {detalhes.organizacao && <Row k="Organização" v={detalhes.organizacao} />}
-              {detalhes.cpf && <Row k="CPF" v={detalhes.cpf} />}
-              {detalhes.rg && <Row k="RG" v={detalhes.rg} />}
-              {detalhes.telefone && <Row k="Telefone" v={detalhes.telefone} />}
-              <Row k="Destino" v={detalhes.local_destino} />
-              <Row k="Origem" v={(detalhes.origem_identificacao || "manual").toUpperCase()} />
-              <Row k="Entrada" v={new Date(detalhes.hora_entrada).toLocaleString("pt-BR")} />
-              <Row k="Saída" v={detalhes.hora_saida ? new Date(detalhes.hora_saida).toLocaleString("pt-BR") : "Ainda no quartel"} />
-              <div>
-                <p className="text-xs font-mono text-muted-foreground mb-1">Observações</p>
-                <p className="text-sm">{detalhes.observacoes || "—"}</p>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={!!confirmDel} onOpenChange={(v) => !v && setConfirmDel(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir pessoa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{confirmDel?.nome}</strong> (NIP {confirmDel?.identificador}) será removida do sistema.
+              Os registros já lançados serão preservados, mas o NIP deixará de funcionar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmDel && removePessoa.mutate(confirmDel.id)}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-};
-
-function tipoLabel(t?: string) {
-  if (t === "civil") return "Civil";
-  if (t === "militar_externo") return "Militar Externo";
-  if (t === "recorrente") return "Recorrente (legado)";
-  return "Comum";
 }
 
-const ModoCard = ({ active, value, icon, label, sub }: { active: boolean; value: string; icon: React.ReactNode; label: string; sub: string }) => (
-  <label className={`flex items-start gap-2 rounded-md border p-3 cursor-pointer transition ${active ? "border-primary bg-primary/5" : "border-border"}`}>
-    <RadioGroupItem value={value} className="mt-0.5" />
-    <div>
-      <div className="text-sm font-semibold flex items-center gap-1">{icon} {label}</div>
-      <div className="text-xs text-muted-foreground">{sub}</div>
-    </div>
-  </label>
-);
-
-const Field = ({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) => (
-  <div>
-    <label className="text-xs font-mono text-muted-foreground mb-1.5 block">{label}</label>
-    <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="bg-secondary border-border" />
-  </div>
-);
-
-const Row = ({ k, v }: { k: string; v: string }) => (
-  <div className="flex justify-between gap-4 border-b border-border/50 pb-1.5">
-    <span className="text-xs font-mono text-muted-foreground uppercase">{k}</span>
-    <span className="text-sm text-foreground text-right">{v}</span>
-  </div>
-);
-
-const VisitantesTable = ({
-  rows, isLoading, onSaida, onDetalhes,
+// =================== Subcomponente ===================
+function VisitantesTable({
+  rows, isLoading, onSaida, saidaPending, showSaidaBtn,
 }: {
-  rows: ApiVisitante[]; isLoading: boolean; onSaida: (v: ApiVisitante) => void; onDetalhes: (v: ApiVisitante) => void;
-}) => (
-  <div className="rounded-lg border border-border overflow-hidden">
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-secondary/50 hover:bg-secondary/50">
-          <TableHead className="text-xs font-mono">TIPO</TableHead>
-          <TableHead className="text-xs font-mono">NOME</TableHead>
-          <TableHead className="text-xs font-mono">ORG / DOC</TableHead>
-          <TableHead className="text-xs font-mono">TELEFONE</TableHead>
-          <TableHead className="text-xs font-mono">DESTINO</TableHead>
-          <TableHead className="text-xs font-mono">ORIGEM</TableHead>
-          <TableHead className="text-xs font-mono">ENTRADA</TableHead>
-          <TableHead className="text-xs font-mono">SAÍDA</TableHead>
-          <TableHead className="text-xs font-mono">AÇÃO</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {isLoading ? (
-          <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Carregando...</TableCell></TableRow>
-        ) : rows.length === 0 ? (
-          <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
-        ) : rows.map((v) => (
-          <TableRow key={v.id} className="hover:bg-secondary/30">
-            <TableCell>
-              {v.tipo === "militar_externo" ? (
-                <Badge className="bg-primary/20 text-primary border-0 gap-1"><Shield className="w-3 h-3" />MIL</Badge>
-              ) : v.tipo === "civil" ? (
-                <Badge className="bg-status-available/20 text-status-available border-0 gap-1"><IdCard className="w-3 h-3" />CIV</Badge>
-              ) : v.tipo === "recorrente" ? (
-                <Badge className="bg-primary/20 text-primary border-0 gap-1"><Fingerprint className="w-3 h-3" />REC</Badge>
-              ) : (
-                <Badge variant="outline" className="text-xs">COMUM</Badge>
-              )}
-            </TableCell>
-            <TableCell className="text-sm font-medium">
-              {v.posto_graduacao ? `${v.posto_graduacao} ` : ""}{v.nome}
-            </TableCell>
-            <TableCell className="text-xs font-mono text-muted-foreground">
-              {v.organizacao || v.forca_militar || v.documento}
-            </TableCell>
-            <TableCell className="text-xs font-mono text-muted-foreground">{v.telefone || "—"}</TableCell>
-            <TableCell className="text-sm text-muted-foreground">{v.local_destino}</TableCell>
-            <TableCell className="text-xs font-mono">
-              {(v.origem_identificacao || "manual").toUpperCase()}
-            </TableCell>
-            <TableCell className="text-xs font-mono">{new Date(v.hora_entrada).toLocaleString("pt-BR")}</TableCell>
-            <TableCell className="text-xs font-mono">
-              {v.hora_saida ? new Date(v.hora_saida).toLocaleString("pt-BR") : "—"}
-            </TableCell>
-            <TableCell>
-              <div className="flex gap-1">
-                <Button size="sm" variant="ghost" onClick={() => onDetalhes(v)} className="h-7 px-2">
-                  <Eye className="w-3.5 h-3.5" />
-                </Button>
-                {!v.hora_saida ? (
-                  <Button size="sm" variant="outline" onClick={() => onSaida(v)} className="gap-1 text-xs h-7">
-                    <LogOut className="w-3 h-3" /> Saída
-                  </Button>
-                ) : (
-                  <Badge className="bg-primary/20 text-primary border-0">Concluído</Badge>
-                )}
-              </div>
-            </TableCell>
+  rows: ApiVisitante[];
+  isLoading: boolean;
+  onSaida?: (v: ApiVisitante) => void;
+  saidaPending?: boolean;
+  showSaidaBtn?: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-border overflow-hidden">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-secondary/50 hover:bg-secondary/50">
+            <TableHead className="text-xs font-mono">NOME</TableHead>
+            <TableHead className="text-xs font-mono">NIP</TableHead>
+            <TableHead className="text-xs font-mono">DESTINO</TableHead>
+            <TableHead className="text-xs font-mono">ENTRADA</TableHead>
+            <TableHead className="text-xs font-mono">SAÍDA</TableHead>
+            {showSaidaBtn && <TableHead className="text-xs font-mono w-32">AÇÃO</TableHead>}
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
-  </div>
-);
-
-export default Visitantes;
+        </TableHeader>
+        <TableBody>
+          {isLoading && (
+            <TableRow><TableCell colSpan={showSaidaBtn ? 6 : 5} className="text-center text-xs font-mono text-muted-foreground py-6">CARREGANDO...</TableCell></TableRow>
+          )}
+          {!isLoading && rows.length === 0 && (
+            <TableRow><TableCell colSpan={showSaidaBtn ? 6 : 5} className="text-center text-xs font-mono text-muted-foreground py-6">NENHUM REGISTRO</TableCell></TableRow>
+          )}
+          {rows.map((v) => (
+            <TableRow key={v.id} className="hover:bg-secondary/30">
+              <TableCell className="font-medium">{v.nome}</TableCell>
+              <TableCell className="text-xs font-mono">{v.documento || "—"}</TableCell>
+              <TableCell className="text-sm text-muted-foreground">{v.local_destino || "—"}</TableCell>
+              <TableCell className="text-xs font-mono text-muted-foreground">
+                {new Date(v.hora_entrada).toLocaleString("pt-BR")}
+              </TableCell>
+              <TableCell className="text-xs font-mono text-muted-foreground">
+                {v.hora_saida ? new Date(v.hora_saida).toLocaleString("pt-BR") : "—"}
+              </TableCell>
+              {showSaidaBtn && (
+                <TableCell>
+                  {!v.hora_saida && onSaida && (
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => onSaida(v)} disabled={saidaPending}>
+                      <LogOut className="w-3.5 h-3.5" /> Saída
+                    </Button>
+                  )}
+                </TableCell>
+              )}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}

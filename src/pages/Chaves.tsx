@@ -5,6 +5,7 @@ import { api, ApiChave, SYNC_OPTIONS } from "@/lib/api";
 import { getCaboOnDuty } from "@/lib/localDb";
 import { showAuthConfirm } from "@/components/AuthConfirm";
 import { BiometricCapture } from "@/components/BiometricCapture";
+import { OperationalDateBanner } from "@/components/OperationalDateBanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -131,6 +132,7 @@ const Chaves = () => {
 
   return (
     <div>
+      <OperationalDateBanner />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
