@@ -64,6 +64,9 @@ function migratePessoas() {
     );
     CREATE INDEX IF NOT EXISTS idx_pessoas_ident ON pessoas(identificador);
   `);
+  addColumnIfMissing("pessoas", "cpf",      "ALTER TABLE pessoas ADD COLUMN cpf TEXT");
+  addColumnIfMissing("pessoas", "rg",       "ALTER TABLE pessoas ADD COLUMN rg TEXT");
+  addColumnIfMissing("pessoas", "telefone", "ALTER TABLE pessoas ADD COLUMN telefone TEXT");
 }
 
 function addColumnIfMissing(table, col, sql) {
