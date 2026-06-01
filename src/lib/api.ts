@@ -174,7 +174,18 @@ export interface ApiPessoa {
   nome: string;
   tipo: PessoaTipo;
   identificador: string;
+  cpf: string | null;
+  rg: string | null;
+  telefone: string | null;
   created_at: string;
+}
+export interface PessoaInput {
+  nome: string;
+  tipo: PessoaTipo;
+  identificador?: string;
+  cpf?: string | null;
+  rg?: string | null;
+  telefone?: string | null;
 }
 
 // ============ Helpers ============
@@ -320,9 +331,9 @@ export const api = {
 
   // ===== Cadastramento de Pessoas =====
   listPessoas: () => request<ApiPessoa[]>("/pessoas"),
-  createPessoa: (body: { nome: string; tipo: PessoaTipo; identificador: string }) =>
+  createPessoa: (body: PessoaInput) =>
     request<{ ok: true; id: number; pessoa: ApiPessoa }>("/pessoas", { method: "POST", body: JSON.stringify(body) }),
-  updatePessoa: (id: number, body: { nome: string; tipo: PessoaTipo; identificador: string }) =>
+  updatePessoa: (id: number, body: PessoaInput) =>
     request<{ ok: true; pessoa: ApiPessoa }>(`/pessoas/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deletePessoa: (id: number) => request<{ ok: true }>(`/pessoas/${id}`, { method: "DELETE" }),
 
