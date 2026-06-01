@@ -113,10 +113,10 @@ router.put("/users/:id", requireRole(...ADM), users.update);
 router.post("/users/:id/reset-password", requireRole(...ADM), users.resetPassword);
 router.delete("/users/:id", requireRole(...ADM), users.remove);
 
-// Cadastramento de Pessoas (somente admin/informatica)
-router.get("/pessoas", requireRole(...ADM), pessoas.list);
-router.get("/pessoas/:id", requireRole(...ADM), pessoas.get);
-router.post("/pessoas", requireRole(...ADM), pessoas.create);
+// Cadastramento de Pessoas — leitura/criação por operadores; alterações/exclusão por admin
+router.get("/pessoas", requireRole(...ALL), pessoas.list);
+router.get("/pessoas/:id", requireRole(...ALL), pessoas.get);
+router.post("/pessoas", requireRole(...RW), pessoas.create);
 router.put("/pessoas/:id", requireRole(...ADM), pessoas.update);
 router.delete("/pessoas/:id", requireRole(...ADM), pessoas.remove);
 

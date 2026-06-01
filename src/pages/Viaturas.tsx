@@ -1,13 +1,17 @@
+// SISTOLDA — Controle de Viaturas (saída/retorno por biometria).
 import { useMemo, useState } from "react";
-import { Car, History, Search, Fingerprint, RotateCcw, Filter } from "lucide-react";
+import { Car, History, Search, RotateCcw, Filter } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, ApiViatura, ApiHistoricoViatura, SYNC_OPTIONS, nomeDoMilitarPorNip } from "@/lib/api";
+import { api, ApiViatura, SYNC_OPTIONS } from "@/lib/api";
 import { getCaboOnDuty } from "@/lib/localDb";
-import { showOperationConfirm } from "@/components/OperationConfirm";
+import { showAuthConfirm } from "@/components/AuthConfirm";
+import { BiometricCapture } from "@/components/BiometricCapture";
+import { OperationalDateBanner } from "@/components/OperationalDateBanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,17 +25,17 @@ const statusBorder = {
   manutencao: "border-status-maintenance/30 hover:border-status-maintenance/60",
 } as const;
 
-const Viaturas = () => {
+export default function Viaturas() {
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<ApiViatura | null>(null);
   const [dialogType, setDialogType] = useState<"saida" | "retorno" | null>(null);
 
-  const [nipMotorista, setNipMotorista] = useState("");
+  // Form saída
   const [destino, setDestino] = useState("");
 
+  // Form retorno
   const [kmRetorno, setKmRetorno] = useState("");
   const [autonomia, setAutonomia] = useState("");
-  const [nipCabo, setNipCabo] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -43,12 +47,10 @@ const Viaturas = () => {
   const { data: viaturas = [], isLoading } = useQuery({
     queryKey: ["viaturas"], queryFn: api.listViaturas, ...SYNC_OPTIONS,
   });
-
   const { data: historico = [] } = useQuery({
     queryKey: ["historico_viaturas"], queryFn: api.historicoViaturas, ...SYNC_OPTIONS,
   });
 
-  // Resolver militar_responsavel a partir do histórico em aberto
   const motoristaAtual = (v: ApiViatura): string | null => {
     if (v.militar_responsavel) return v.militar_responsavel;
     const open = historico.find((h) => h.viatura_id === v.id && h.status === "em_uso");
@@ -60,48 +62,34 @@ const Viaturas = () => {
     queryClient.invalidateQueries({ queryKey: ["historico_viaturas"] });
   };
 
-  const saidaMutation = useMutation({
-    mutationFn: async ({ viatura, cabo }: { viatura: ApiViatura; cabo: string }) => {
-      const motorista = await nomeDoMilitarPorNip(nipMotorista);
-      await api.saidaViatura({ viatura_id: viatura.id, motorista, nip: nipMotorista, destino, cabo });
-      return { motorista, viatura };
+  const autenticarMutation = useMutation({
+    mutationFn: async (vars: { nip: string; acao: "saida" | "retorno"; viatura: ApiViatura }) => {
+      const payload =
+        vars.acao === "saida"
+          ? { destino: destino.trim() }
+          : { km_retorno: parseInt(kmRetorno) || 0, autonomia: autonomia || null };
+      const resp = await api.autenticarBiometria({
+        nip: vars.nip,
+        modulo: "viaturas",
+        acao: vars.acao,
+        itens: [vars.viatura.id],
+        cabo: getCaboOnDuty(),
+        payload,
+      });
+      return { resp, viatura: vars.viatura };
     },
-    onSuccess: ({ motorista, viatura }) => {
+    onSuccess: ({ resp, viatura }) => {
       invalidate();
-      showOperationConfirm({
-        nome: motorista,
-        acao: "saiu com a viatura",
-        detalhe: viatura.prefixo,
-        variant: "viatura",
+      showAuthConfirm({
+        nome: resp.nome,
+        nip: resp.nip,
+        descricao: resp.descricao || `Operação na viatura ${viatura.prefixo}`,
+        modulo: "viaturas",
       });
       setDialogType(null); setSelected(null);
-      setNipMotorista(""); setDestino("");
+      setDestino(""); setKmRetorno(""); setAutonomia("");
     },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
-  });
-
-  const retornoMutation = useMutation({
-    mutationFn: async ({ viatura, cabo }: { viatura: ApiViatura; cabo: string }) => {
-      await api.retornoViatura({
-        viatura_id: viatura.id,
-        km_retorno: parseInt(kmRetorno) || 0,
-        autonomia: autonomia || null,
-        cabo,
-      });
-      return viatura;
-    },
-    onSuccess: (viatura) => {
-      const nome = motoristaAtual(viatura) || "Militar";
-      invalidate();
-      showOperationConfirm({
-        nome,
-        acao: "retornou com a viatura",
-        detalhe: viatura.prefixo,
-        variant: "viatura",
-      });
-      setDialogType(null); setSelected(null); setKmRetorno(""); setAutonomia(""); setNipCabo("");
-    },
-    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onError: (e: Error) => toast({ title: "Falha na autenticação", description: e.message, variant: "destructive" }),
   });
 
   const handleClick = (v: ApiViatura) => {
@@ -110,22 +98,26 @@ const Viaturas = () => {
     setDialogType(v.status === "disponivel" ? "saida" : "retorno");
   };
 
-  const handleSaida = () => {
-    if (!nipMotorista.trim() || !destino.trim()) {
-      toast({ title: "Erro", description: "Informe NIP do motorista e destino.", variant: "destructive" });
+  const onBiometriaSaida = (nip: string) => {
+    if (!destino.trim()) {
+      toast({ title: "Destino obrigatório", description: "Informe o destino antes da biometria.", variant: "destructive" });
       return;
     }
-    saidaMutation.mutate({ viatura: selected!, cabo: getCaboOnDuty() });
+    if (!selected) return;
+    autenticarMutation.mutate({ nip, acao: "saida", viatura: selected });
   };
-
-  const handleRetorno = async () => {
-    if (!kmRetorno.trim()) { toast({ title: "Erro", description: "Informe a quilometragem.", variant: "destructive" }); return; }
-    const cabo = nipCabo ? await nomeDoMilitarPorNip(nipCabo) : getCaboOnDuty();
-    retornoMutation.mutate({ viatura: selected!, cabo });
+  const onBiometriaRetorno = (nip: string) => {
+    if (!kmRetorno.trim()) {
+      toast({ title: "Quilometragem obrigatória", description: "Informe a KM antes da biometria.", variant: "destructive" });
+      return;
+    }
+    if (!selected) return;
+    autenticarMutation.mutate({ nip, acao: "retorno", viatura: selected });
   };
 
   const filtered = viaturas.filter((v) =>
-    v.prefixo.toLowerCase().includes(searchTerm.toLowerCase()) || v.modelo.toLowerCase().includes(searchTerm.toLowerCase())
+    v.prefixo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    v.modelo.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const filteredHist = useMemo(() => historico.filter((h) => {
@@ -139,12 +131,14 @@ const Viaturas = () => {
 
   return (
     <div>
+      <OperationalDateBanner />
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Car className="w-6 h-6 text-primary" /> Viaturas
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Controle de saída e retorno das viaturas</p>
+          <p className="text-sm text-muted-foreground mt-1">Controle de saída e retorno por biometria.</p>
         </div>
         <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="status-dot-available" /> {viaturas.filter((v) => v.status === "disponivel").length}</span>
@@ -250,7 +244,8 @@ const Viaturas = () => {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={dialogType === "saida"} onOpenChange={() => setDialogType(null)}>
+      {/* ===== Saída ===== */}
+      <Dialog open={dialogType === "saida"} onOpenChange={() => { setDialogType(null); setDestino(""); }}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Car className="w-5 h-5 text-primary" /> Saída — {selected?.prefixo}</DialogTitle>
@@ -262,24 +257,22 @@ const Viaturas = () => {
               <p className="text-lg font-bold font-mono text-foreground">{selected?.km_atual?.toLocaleString("pt-BR") || 0} km</p>
             </div>
             <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">NIP DO MOTORISTA</label>
-              <Input value={nipMotorista} onChange={(e) => setNipMotorista(e.target.value)} placeholder="Digite o NIP" className="bg-secondary border-border" autoFocus />
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">DESTINO *</Label>
+              <Input value={destino} onChange={(e) => setDestino(e.target.value)} placeholder="Local de destino" className="bg-secondary border-border" autoFocus />
             </div>
-            <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">DESTINO</label>
-              <Input value={destino} onChange={(e) => setDestino(e.target.value)} placeholder="Local de destino" className="bg-secondary border-border" />
-            </div>
-            <Button className="w-full gap-2" variant="outline" disabled>
-              <Fingerprint className="w-4 h-4" /> Coletar biometria (futuro)
-            </Button>
-            <Button onClick={handleSaida} className="w-full" disabled={saidaMutation.isPending}>
-              {saidaMutation.isPending ? "Registrando..." : "Confirmar Saída"}
-            </Button>
+            <BiometricCapture
+              onCapture={onBiometriaSaida}
+              disabled={autenticarMutation.isPending || !destino.trim()}
+              label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
+              hint={destino.trim() ? "Posicione o dedo no leitor para confirmar a saída." : "Informe o destino antes da biometria."}
+              autoRefocus={!!destino.trim()}
+            />
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={dialogType === "retorno"} onOpenChange={() => setDialogType(null)}>
+      {/* ===== Retorno ===== */}
+      <Dialog open={dialogType === "retorno"} onOpenChange={() => { setDialogType(null); setKmRetorno(""); setAutonomia(""); }}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><RotateCcw className="w-5 h-5 text-primary" /> Retorno — {selected?.prefixo}</DialogTitle>
@@ -287,26 +280,23 @@ const Viaturas = () => {
           </DialogHeader>
           <div className="space-y-3 mt-2">
             <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">QUILOMETRAGEM ATUAL</label>
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">QUILOMETRAGEM ATUAL *</Label>
               <Input type="number" value={kmRetorno} onChange={(e) => setKmRetorno(e.target.value)} placeholder="km" className="bg-secondary border-border" autoFocus />
             </div>
             <div>
-              <label className="text-xs font-mono text-muted-foreground mb-1.5 block">AUTONOMIA</label>
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">AUTONOMIA</Label>
               <Input value={autonomia} onChange={(e) => setAutonomia(e.target.value)} placeholder="ex: 1/2 tanque" className="bg-secondary border-border" />
             </div>
-            <div className="p-3 rounded-md bg-secondary/50 border border-border">
-              <p className="text-xs text-muted-foreground font-mono">CABO AUXILIAR DE SERVIÇO</p>
-              <Input value={nipCabo} onChange={(e) => setNipCabo(e.target.value)} placeholder="NIP (biometria futura)" className="bg-background border-border mt-2 h-8 text-xs" />
-            </div>
-            <Button onClick={handleRetorno} className="w-full gap-2" disabled={retornoMutation.isPending}>
-              <Fingerprint className="w-4 h-4" />
-              {retornoMutation.isPending ? "Registrando..." : "Coletar biometria e confirmar retorno"}
-            </Button>
+            <BiometricCapture
+              onCapture={onBiometriaRetorno}
+              disabled={autenticarMutation.isPending || !kmRetorno.trim()}
+              label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
+              hint={kmRetorno.trim() ? "Posicione o dedo no leitor para confirmar o retorno." : "Informe a quilometragem antes da biometria."}
+              autoRefocus={!!kmRetorno.trim()}
+            />
           </div>
         </DialogContent>
       </Dialog>
     </div>
   );
-};
-
-export default Viaturas;
+}

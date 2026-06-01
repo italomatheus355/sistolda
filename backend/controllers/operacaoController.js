@@ -90,12 +90,12 @@ exports.autenticarBiometria = (req, res, next) => {
           observacoes: p.observacoes || null,
           cabo_registro: caboOp,
           telefone: p.telefone || null,
-          posto_graduacao: posto || null,
+          posto_graduacao: p.posto_graduacao || null,
           forca_militar: p.forca_militar || null,
-          tipo: "militar_externo",
+          tipo: p.tipo || (ident.origem.startsWith("pessoas") ? ident.origem.split(":")[1] : "militar"),
           origem_identificacao: "biometria",
         });
-        descricao = `${nomeFmt} (NIP ${nip}) registrou entrada no módulo de visitantes.`;
+        descricao = `${nomeFmt} (NIP ${nip}) registrou entrada no quartel (destino: ${p.local_destino || "—"}).`;
         logAuditoria(req, { modulo, acao, nip, nome: nomeFmt, descricao });
         return res.json({ success: true, nip, nome: nomeFmt, id, descricao });
       }
