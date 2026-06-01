@@ -90,8 +90,8 @@ export default function Pessoas() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!/^\d{8}$/.test(form.identificador)) {
-      toast({ title: "Identificador inválido", description: "Deve conter exatamente 8 dígitos.", variant: "destructive" });
+    if (!/^\d{4,10}$/.test(form.identificador)) {
+      toast({ title: "Identificador inválido", description: "Entre 4 e 10 dígitos.", variant: "destructive" });
       return;
     }
     if (!form.nome.trim()) {
@@ -102,9 +102,9 @@ export default function Pessoas() {
   }
 
   const hintByTipo: Record<PessoaTipo, string> = {
-    marinha: "NIP real de 8 dígitos.",
-    exercito: "Identificador biométrico de 8 dígitos.",
-    civil: "Identificador biométrico de 8 dígitos.",
+    marinha: "NIP real (até 10 dígitos).",
+    exercito: "NIP gerado: 000 + 4 últimos do CPF (7 dígitos).",
+    civil: "NIP gerado: 000 + 4 últimos do CPF (7 dígitos).",
   };
 
   return (
@@ -224,15 +224,15 @@ export default function Pessoas() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>NIP / Identificador (8 dígitos)</Label>
+              <Label>NIP / Identificador (4 a 10 dígitos)</Label>
               <Input
                 value={form.identificador}
                 onChange={(e) =>
-                  setForm({ ...form, identificador: e.target.value.replace(/\D/g, "").slice(0, 8) })
+                  setForm({ ...form, identificador: e.target.value.replace(/\D/g, "").slice(0, 10) })
                 }
-                placeholder="00000000"
+                placeholder="0000000"
                 inputMode="numeric"
-                maxLength={8}
+                maxLength={10}
                 className="font-mono"
               />
               <p className="text-xs text-muted-foreground">{hintByTipo[form.tipo]}</p>
