@@ -14,7 +14,8 @@ function normalize(p) {
 function validate(p) {
   if (!p.nome) return "Nome é obrigatório.";
   if (!TIPOS.includes(p.tipo)) return "Tipo inválido (marinha|exercito|civil).";
-  if (!/^\d{8}$/.test(p.identificador)) return "Identificador deve ter 8 dígitos.";
+  // Marinha usa NIP real (até 10 dígitos); externos/civis recebem NIP gerado "000" + 4 últimos do CPF (7 dígitos).
+  if (!/^\d{4,10}$/.test(p.identificador)) return "Identificador deve conter entre 4 e 10 dígitos.";
   return null;
 }
 
