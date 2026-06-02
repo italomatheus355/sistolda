@@ -23,11 +23,11 @@ function validate(p) {
   return null;
 }
 
-// Gera NIP automático: "000" + últimos 4 dígitos do CPF (total 7 dígitos).
+// Gera NIP automático: "0000" + últimos 4 dígitos do CPF (total 8 dígitos).
 function gerarNipPorCpf(cpf) {
   const c = onlyDigits(cpf);
   if (c.length < 4) return null;
-  return "000" + c.slice(-4);
+  return "0000" + c.slice(-4);
 }
 
 module.exports = {
