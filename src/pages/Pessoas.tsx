@@ -103,8 +103,8 @@ export default function Pessoas() {
 
   const hintByTipo: Record<PessoaTipo, string> = {
     marinha: "NIP real (até 10 dígitos).",
-    exercito: "NIP gerado: 000 + 4 últimos do CPF (7 dígitos).",
-    civil: "NIP gerado: 000 + 4 últimos do CPF (7 dígitos).",
+    exercito: "NIP gerado: 0000 + 4 últimos do CPF (8 dígitos).",
+    civil: "NIP gerado: 0000 + 4 últimos do CPF (8 dígitos).",
   };
 
   return (

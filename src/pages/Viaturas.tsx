@@ -67,7 +67,7 @@ export default function Viaturas() {
       const payload =
         vars.acao === "saida"
           ? { destino: destino.trim() }
-          : { km_retorno: parseInt(kmRetorno) || 0, autonomia: autonomia || null };
+          : { km_retorno: kmRetorno.trim() !== "" ? parseInt(kmRetorno) : 0, autonomia: autonomia.trim() !== "" ? autonomia : null };
       const resp = await api.autenticarBiometria({
         nip: vars.nip,
         modulo: "viaturas",

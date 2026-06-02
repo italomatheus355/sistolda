@@ -147,9 +147,9 @@ exports.autenticarBiometria = (req, res, next) => {
       }
       if (acao === "retorno") {
         const viatura_id = Number((itens || [])[0] || p.viatura_id);
-        Viaturas.retorno({ viatura_id, km_retorno: Number(p.km_retorno || 0), autonomia: p.autonomia || null, cabo: caboOp });
+        Viaturas.retorno({ viatura_id, km_retorno: Number(p.km_retorno != null ? p.km_retorno : 0), autonomia: p.autonomia != null ? p.autonomia : null, cabo: caboOp });
         const viatura = Viaturas.getById(viatura_id);
-        descricao = `${nomeFmt} (NIP ${nip}) retornou a viatura ${viatura?.prefixo || viatura_id} (KM ${p.km_retorno || "—"}).`;
+        descricao = `${nomeFmt} (NIP ${nip}) retornou a viatura ${viatura?.prefixo || viatura_id} (KM ${p.km_retorno != null ? p.km_retorno : "—"}).`;
         logAuditoria(req, { modulo, acao, nip, nome: nomeFmt, descricao });
         return res.json({ success: true, nip, nome: nomeFmt, descricao });
       }
