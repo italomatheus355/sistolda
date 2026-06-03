@@ -66,6 +66,7 @@ export interface ApiHistoricoChave {
   cabo_retirada: string | null;
   cabo_devolucao: string | null;
   status: "em_uso" | "devolvida";
+  pessoa_tipo?: PessoaTipo;
 }
 export interface ApiViatura {
   id: number;
@@ -92,6 +93,7 @@ export interface ApiHistoricoViatura {
   cabo_saida: string | null;
   cabo_retorno: string | null;
   status: "em_uso" | "retornada";
+  pessoa_tipo?: PessoaTipo;
 }
 export interface ApiVisitante {
   id: number;
@@ -157,6 +159,7 @@ export interface ApiMaterial {
   destino: string;
   data_registro: string;
   cabo_registro: string | null;
+  pessoa_tipo?: PessoaTipo;
 }
 export interface ApiMilitar {
   id: number;
