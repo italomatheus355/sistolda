@@ -98,14 +98,14 @@ function coletarDados(dateStr) {
   const chaves = db.prepare(`
     SELECT chave_numero, chave_nome, militar, nip,
            data_retirada, data_devolucao, status,
-           cabo_retirada, cabo_devolucao
+           cabo_retirada, cabo_devolucao, pessoa_tipo
     FROM retiradas_chaves
-    WHERE substr(data_retirada,1,10) = ? OR substr(data_devolucao,1,10) = ?
+    WHERE (substr(data_retirada,1,10) = ? OR substr(data_devolucao,1,10) = ?)
     ORDER BY data_retirada
   `).all(dateStr, dateStr);
 
   const pendentesChaves = db.prepare(`
-    SELECT chave_numero, chave_nome, militar, data_retirada
+    SELECT chave_numero, chave_nome, militar, data_retirada, pessoa_tipo
     FROM retiradas_chaves
     WHERE status = 'em_uso'
     ORDER BY data_retirada
@@ -115,9 +115,9 @@ function coletarDados(dateStr) {
     SELECT viatura_prefixo, motorista, nip, destino,
            km_saida, km_retorno, km_rodado, autonomia_informada,
            data_saida, data_retorno, status,
-           cabo_saida, cabo_retorno
+           cabo_saida, cabo_retorno, pessoa_tipo
     FROM historico_viaturas
-    WHERE substr(data_saida,1,10) = ? OR substr(data_retorno,1,10) = ?
+    WHERE (substr(data_saida,1,10) = ? OR substr(data_retorno,1,10) = ?)
     ORDER BY data_saida
   `).all(dateStr, dateStr);
 
@@ -133,7 +133,7 @@ function coletarDados(dateStr) {
   `).all(dateStr, dateStr);
 
   const materiais = db.prepare(`
-    SELECT nome_material, militar, nip, destino, data_registro, cabo_registro
+    SELECT nome_material, militar, nip, destino, data_registro, cabo_registro, pessoa_tipo
     FROM materiais
     WHERE substr(data_registro,1,10) = ?
     ORDER BY data_registro
@@ -205,29 +205,59 @@ function gerarPDF(filePath, dateStr, dados, isMensal = false) {
 
     section("CHAVES — Movimentação");
     drawTable(["Nº","Chave","Militar","Retirada","Devolução","Status"],
-      dados.chaves.map(c => [c.chave_numero, c.chave_nome, c.militar, brDateTime(c.data_retirada), brDateTime(c.data_devolucao), c.status === "em_uso" ? "EM USO" : "DEVOLVIDA"]),
+      dados.chaves.map(c => [
+        c.chave_numero, 
+        c.chave_nome, 
+        c.militar + (c.pessoa_tipo === "exercito" ? " (EB)" : c.pessoa_tipo === "civil" ? " (Civil)" : ""),
+        brDateTime(c.data_retirada), 
+        brDateTime(c.data_devolucao), 
+        c.status === "em_uso" ? "EM USO" : "DEVOLVIDA"
+      ]),
       [30,170,110,90,90,65]);
 
     section("CHAVES — Pendências em aberto");
     drawTable(["Nº","Chave","Militar","Retirada"],
-      dados.pendentesChaves.map(c => [c.chave_numero, c.chave_nome, c.militar, brDateTime(c.data_retirada)]),
+      dados.pendentesChaves.map(c => [
+        c.chave_numero, 
+        c.chave_nome, 
+        c.militar + (c.pessoa_tipo === "exercito" ? " (EB)" : c.pessoa_tipo === "civil" ? " (Civil)" : ""),
+        brDateTime(c.data_retirada)
+      ]),
       [40,240,150,125]);
 
     doc.addPage();
     section("VIATURAS — Saídas e retornos");
     drawTable(["Prefixo","Motorista","Destino","KM Saída","KM Retorno","KM Rodado","Saída","Retorno"],
-      dados.viaturas.map(v => [v.viatura_prefixo, v.motorista, v.destino, v.km_saida ?? "—", v.km_retorno ?? "—", v.km_rodado ?? "—", brDateTime(v.data_saida), brDateTime(v.data_retorno)]),
+      dados.viaturas.map(v => [
+        v.viatura_prefixo, 
+        v.motorista + (v.pessoa_tipo === "exercito" ? " (EB)" : v.pessoa_tipo === "civil" ? " (Civil)" : ""),
+        v.destino, 
+        v.km_saida ?? "—", 
+        v.km_retorno ?? "—", 
+        v.km_rodado ?? "—", 
+        brDateTime(v.data_saida), 
+        brDateTime(v.data_retorno)
+      ]),
       [60,90,90,50,55,55,80,75]);
 
     doc.addPage();
     section("VISITANTES");
     drawTable(["Nome","Tipo","Documento","Entrada","Saída"],
-      dados.visitantes.map(v => [v.nome, v.tipo || "comum", v.cpf || v.rg || v.documento || "—", brDateTime(v.hora_entrada), brDateTime(v.hora_saida)]),
+      dados.visitantes.map(v => {
+        const suffix = v.tipo === "exercito" ? " (EB)" : v.tipo === "civil" ? " (Civil)" : "";
+        return [v.nome + suffix, v.tipo || "comum", v.cpf || v.rg || v.documento || "—", brDateTime(v.hora_entrada), brDateTime(v.hora_saida)];
+      }),
       [160,90,110,90,90]);
 
     section("MATERIAIS");
     drawTable(["Material","Militar","NIP","Destino","Registro"],
-      dados.materiais.map(m => [m.nome_material, m.militar, m.nip, m.destino, brDateTime(m.data_registro)]),
+      dados.materiais.map(m => [
+        m.nome_material, 
+        m.militar + (m.pessoa_tipo === "exercito" ? " (EB)" : m.pessoa_tipo === "civil" ? " (Civil)" : ""),
+        m.nip, 
+        m.destino, 
+        brDateTime(m.data_registro)
+      ]),
       [160,110,70,110,105]);
 
     doc.moveDown(2);
@@ -334,14 +364,14 @@ async function gerarRelatorioDiario(dateStr = isoDate()) {
 // ---------- Relatório mensal ----------
 function coletarDadosMes(mesStr) {
   const chaves = db.prepare(`
-    SELECT chave_numero, chave_nome, militar, nip, data_retirada, data_devolucao, status, cabo_retirada, cabo_devolucao
+    SELECT chave_numero, chave_nome, militar, nip, data_retirada, data_devolucao, status, cabo_retirada, cabo_devolucao, pessoa_tipo
     FROM retiradas_chaves
     WHERE substr(data_retirada,1,7) = ? OR substr(data_devolucao,1,7) = ?
     ORDER BY data_retirada
   `).all(mesStr, mesStr);
   const viaturas = db.prepare(`
     SELECT viatura_prefixo, motorista, nip, destino, km_saida, km_retorno, km_rodado, autonomia_informada,
-           data_saida, data_retorno, status, cabo_saida, cabo_retorno
+           data_saida, data_retorno, status, cabo_saida, cabo_retorno, pessoa_tipo
     FROM historico_viaturas
     WHERE substr(data_saida,1,7) = ? OR substr(data_retorno,1,7) = ?
     ORDER BY data_saida
@@ -354,7 +384,7 @@ function coletarDadosMes(mesStr) {
     ORDER BY hora_entrada
   `).all(mesStr, mesStr);
   const materiais = db.prepare(`
-    SELECT nome_material, militar, nip, destino, data_registro, cabo_registro
+    SELECT nome_material, militar, nip, destino, data_registro, cabo_registro, pessoa_tipo
     FROM materiais
     WHERE substr(data_registro,1,7) = ?
     ORDER BY data_registro
