@@ -38,10 +38,16 @@ export function BiometricCapture({
 
   useEffect(() => {
     if (!autoRefocus || disabled) return;
-    const refocus = () => {
+    const refocus = (e: Event) => {
+      // Se o clique/foco foi em um input ou textarea, não rouba o foco.
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
+
       // pequeno delay para não brigar com cliques em botões/diálogos
       setTimeout(() => {
-        if (document.activeElement !== inputRef.current) {
+        if (document.activeElement !== inputRef.current && !document.activeElement?.closest('input, textarea')) {
           inputRef.current?.focus();
         }
       }, 50);
