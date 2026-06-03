@@ -26,7 +26,7 @@ const allModules = [
 
 const adminModules = [
   { title: "Escala",      url: "/escala",     icon: Calendar,    route: "escala" },
-  { title: "Pessoas",     url: "/pessoas",    icon: Users2,      route: "pessoas" },
+  
   { title: "Relatórios",  url: "/relatorios", icon: FileText,    route: "relatorios" },
   { title: "Auditoria",   url: "/auditoria",  icon: ShieldAlert, route: "auditoria" },
   { title: "Usuários",    url: "/usuarios",   icon: UserCog,     route: "usuarios" },
