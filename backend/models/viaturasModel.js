@@ -10,9 +10,9 @@ module.exports = {
       db.prepare("UPDATE viaturas SET status='em_uso' WHERE id=?").run(viatura.id);
       const r = db.prepare(`
         INSERT INTO historico_viaturas
-          (viatura_id, viatura_prefixo, motorista, nip, destino, km_saida, cabo_saida, status)
-        VALUES (?,?,?,?,?,?,?, 'em_uso')
-      `).run(viatura.id, viatura.prefixo, motorista, nip != null ? nip : null, destino, km, cabo != null ? cabo : null);
+          (viatura_id, viatura_prefixo, motorista, nip, destino, km_saida, cabo_saida, status, pessoa_tipo)
+        VALUES (?,?,?,?,?,?,?, 'em_uso', ?)
+      `).run(viatura.id, viatura.prefixo, motorista, nip != null ? nip : null, destino, km, cabo != null ? cabo : null, arguments[0].tipo || 'marinha');
       return r.lastInsertRowid;
     });
     return tx();
