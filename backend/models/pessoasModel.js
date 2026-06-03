@@ -57,7 +57,10 @@ module.exports = {
     const err = validate(p);
     if (err) { const e = new Error(err); e.status = 400; throw e; }
     const exists = db.prepare("SELECT id FROM pessoas WHERE identificador = ?").get(p.identificador);
-    if (exists) { const e = new Error("Identificador (NIP) já cadastrado."); e.status = 409; throw e; }
+    if (exists) {
+      // Regra: se já existir o NIP, reutilizar o cadastro existente
+      return exists.id;
+    }
     const r = db.prepare(`
       INSERT INTO pessoas (nome, tipo, identificador, cpf, rg, telefone)
       VALUES (?,?,?,?,?,?)

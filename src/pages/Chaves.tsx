@@ -305,7 +305,10 @@ const Chaves = () => {
                       <span className="text-muted-foreground"> — </span>
                       <span className="font-medium">{h.chave_nome}</span>
                     </TableCell>
-                    <TableCell className="text-sm">{h.militar}</TableCell>
+                    <TableCell className="text-sm">
+                      {h.militar}
+                      {h.pessoa_tipo === "exercito" ? " (EB)" : h.pessoa_tipo === "civil" ? " (Civil)" : ""}
+                    </TableCell>
                     <TableCell className="text-xs font-mono">{h.nip || "—"}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{new Date(h.data_retirada).toLocaleString("pt-BR")}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{h.data_devolucao ? new Date(h.data_devolucao).toLocaleString("pt-BR") : "—"}</TableCell>

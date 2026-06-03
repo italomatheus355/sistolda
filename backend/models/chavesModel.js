@@ -13,9 +13,9 @@ module.exports = {
         .run(militar, chave.id);
       const r = db.prepare(`
         INSERT INTO retiradas_chaves
-          (chave_id, chave_numero, chave_nome, militar, nip, cabo_retirada, status)
-        VALUES (?,?,?,?,?,?, 'em_uso')
-      `).run(chave.id, chave.numero, chave.nome, militar, nip || null, cabo || null);
+          (chave_id, chave_numero, chave_nome, militar, nip, cabo_retirada, status, pessoa_tipo)
+        VALUES (?,?,?,?,?,?, 'em_uso', ?)
+      `).run(chave.id, chave.numero, chave.nome, militar, nip || null, cabo || null, arguments[0].tipo || 'marinha');
       return r.lastInsertRowid;
     });
     return tx();
