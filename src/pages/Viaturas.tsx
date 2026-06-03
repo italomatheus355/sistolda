@@ -222,7 +222,10 @@ export default function Viaturas() {
                 {filteredHist.map((h) => (
                   <TableRow key={h.id} className="hover:bg-secondary/30">
                     <TableCell className="text-sm font-bold font-mono">{h.viatura_prefixo}</TableCell>
-                    <TableCell className="text-sm">{h.motorista}</TableCell>
+                    <TableCell className="text-sm">
+                      {h.motorista}
+                      {h.pessoa_tipo === "exercito" ? " (EB)" : h.pessoa_tipo === "civil" ? " (Civil)" : ""}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{h.destino}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{new Date(h.data_saida).toLocaleString("pt-BR")}</TableCell>
                     <TableCell className="text-xs font-mono text-muted-foreground">{h.data_retorno ? new Date(h.data_retorno).toLocaleString("pt-BR") : "—"}</TableCell>

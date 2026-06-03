@@ -135,7 +135,10 @@ const MaterialPage = () => {
             ) : filtered.map((r) => (
               <TableRow key={r.id} className="hover:bg-secondary/30">
                 <TableCell className="text-sm font-medium">{r.nome_material}</TableCell>
-                <TableCell className="text-sm">{r.militar}</TableCell>
+                <TableCell className="text-sm">
+                  {r.militar}
+                  {r.pessoa_tipo === "exercito" ? " (EB)" : r.pessoa_tipo === "civil" ? " (Civil)" : ""}
+                </TableCell>
                 <TableCell className="text-xs font-mono">{r.nip}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{r.destino}</TableCell>
                 <TableCell className="text-xs font-mono text-muted-foreground">{new Date(r.data_registro).toLocaleString("pt-BR")}</TableCell>

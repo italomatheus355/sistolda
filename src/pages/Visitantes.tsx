@@ -389,8 +389,10 @@ export default function Visitantes() {
                     )}
                     {pessoasFiltradas.map((p) => (
                       <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.nome}</TableCell>
-                        <TableCell>
+                        <TableCell className="font-medium">
+                          {p.nome}
+                          {p.tipo === "exercito" ? " (EB)" : p.tipo === "civil" ? " (Civil)" : ""}
+                        </TableCell>
                           <Badge variant={TIPO_BADGE[p.tipo]}>{TIPO_LABEL[p.tipo]}</Badge>
                         </TableCell>
                         <TableCell className="font-mono">{p.identificador}</TableCell>

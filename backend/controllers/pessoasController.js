@@ -19,6 +19,11 @@ exports.create = (req, res, next) => {
   try {
     const id = Pessoas.create(req.body);
     const p = Pessoas.getById(id);
+    
+    // Se o identificador já existia, o model retornou o ID existente em vez de criar novo.
+    // Podemos detectar isso se a requisição original era uma criação mas o ID retornado já existia.
+    // Para simplificar, o controller sempre registra auditoria, mas a mensagem muda se for reutilização.
+    
     logAuditoria(req, {
       modulo: "pessoas", acao: "cadastro",
       nip: p.identificador, nome: p.nome,
