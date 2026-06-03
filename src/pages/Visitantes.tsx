@@ -36,11 +36,11 @@ const TIPO_BADGE: Record<PessoaTipo, "default" | "secondary" | "outline"> = {
   marinha: "default", exercito: "secondary", civil: "outline",
 };
 
-// "000" + últimos 4 dígitos do CPF (7 dígitos)
+// "0000" + últimos 4 dígitos do CPF (8 dígitos)
 function nipFromCpf(cpf: string) {
   const c = onlyDigits(cpf);
   if (c.length < 4) return "";
-  return "000" + c.slice(-4);
+  return "0000" + c.slice(-4);
 }
 
 const EMPTY_FORM: PessoaInput & { identificador: string } = {
@@ -276,7 +276,7 @@ export default function Visitantes() {
             </DialogTitle>
             <DialogDescription>
               Marinha, Exército e Civil. Para militares externos e civis, o NIP é gerado automaticamente como
-              <span className="font-mono"> 000 + 4 últimos dígitos do CPF</span>.
+              <span className="font-mono"> 0000 + 4 últimos dígitos do CPF</span>.
             </DialogDescription>
           </DialogHeader>
 
@@ -332,7 +332,7 @@ export default function Visitantes() {
                 <Input
                   value={form.identificador}
                   onChange={(e) => handleFormChange({ identificador: onlyDigits(e.target.value).slice(0, 10) })}
-                  placeholder={form.tipo === "marinha" ? "NIP" : "000XXXX"}
+                  placeholder={form.tipo === "marinha" ? "NIP" : "0000XXXX"}
                   className="bg-secondary border-border font-mono"
                   readOnly={form.tipo !== "marinha"}
                 />
