@@ -17,14 +17,12 @@ function resolverIdentidade(nip) {
   if (militar) {
     const posto = (militar.posto_graduacao || "").trim();
     const nomeBase = posto ? `${posto} ${militar.nome}` : militar.nome;
-    return { nomeFmt: `${nomeBase} (Marinha)`, origem: "militares" };
+    return { nomeFmt: nomeBase, origem: "militares", tipo: "marinha" };
   }
   const pessoa = Pessoas.getByIdentificador(nip);
   if (pessoa) {
-    const categoria = pessoa.tipo === "marinha" ? "Marinha"
-      : pessoa.tipo === "exercito" ? "Exército"
-      : "Civil";
-    return { nomeFmt: `${pessoa.nome} (${categoria})`, origem: `pessoas:${pessoa.tipo}` };
+    const suffix = pessoa.tipo === "exercito" ? " (EB)" : pessoa.tipo === "civil" ? " (Civil)" : "";
+    return { nomeFmt: `${pessoa.nome}${suffix}`, origem: `pessoas:${pessoa.tipo}`, tipo: pessoa.tipo };
   }
   return null;
 }
@@ -55,7 +53,7 @@ exports.autenticarBiometria = (req, res, next) => {
           const chave = Chaves.getById(chave_id);
           if (!chave) return res.status(404).json({ error: `Chave ${chave_id} não encontrada.` });
           if (chave.status === "emprestada") return res.status(400).json({ error: `Chave Nº ${chave.numero} já está emprestada.` });
-          Chaves.retirar({ chave, militar: nomeFmt, nip, cabo: caboOp });
+          Chaves.retirar({ chave, militar: nomeFmt, nip, cabo: caboOp, tipo: ident.tipo });
           r.push(chave);
         }
         const nums = r.map((c) => String(c.numero).padStart(2, "0")).join(", ");
@@ -124,6 +122,7 @@ exports.autenticarBiometria = (req, res, next) => {
           militar: nomeFmt, nip,
           destino: m.destino || payload?.destino || "—",
           cabo_registro: caboOp,
+          pessoa_tipo: ident.tipo,
         });
         ids.push(id);
       }
@@ -141,7 +140,7 @@ exports.autenticarBiometria = (req, res, next) => {
         const viatura = Viaturas.getById(viatura_id);
         if (!viatura) return res.status(404).json({ error: "Viatura não encontrada." });
         if (viatura.status !== "disponivel") return res.status(400).json({ error: "Viatura indisponível." });
-        const id = Viaturas.saida({ viatura, motorista: nomeFmt, nip, destino: p.destino || "—", cabo: caboOp });
+        const id = Viaturas.saida({ viatura, motorista: nomeFmt, nip, destino: p.destino || "—", cabo: caboOp, tipo: ident.tipo });
         descricao = `${nomeFmt} (NIP ${nip}) saiu com a viatura ${viatura.prefixo} para ${p.destino || "—"}.`;
         logAuditoria(req, { modulo, acao, nip, nome: nomeFmt, descricao });
         return res.json({ success: true, nip, nome: nomeFmt, descricao, id });
