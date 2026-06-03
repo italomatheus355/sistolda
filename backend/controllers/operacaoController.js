@@ -16,14 +16,15 @@ function resolverIdentidade(nip) {
   const militar = Militares.getByNip(nip);
   if (militar) {
     const posto = (militar.posto_graduacao || "").trim();
-    return { nomeFmt: posto ? `${posto} ${militar.nome}` : militar.nome, origem: "militares" };
+    const nomeBase = posto ? `${posto} ${militar.nome}` : militar.nome;
+    return { nomeFmt: `${nomeBase} (Marinha)`, origem: "militares" };
   }
   const pessoa = Pessoas.getByIdentificador(nip);
   if (pessoa) {
-    const prefixo = pessoa.tipo === "marinha" ? "MB"
-      : pessoa.tipo === "exercito" ? "EB"
-      : "Sr(a).";
-    return { nomeFmt: `${prefixo} ${pessoa.nome}`, origem: `pessoas:${pessoa.tipo}` };
+    const categoria = pessoa.tipo === "marinha" ? "Marinha"
+      : pessoa.tipo === "exercito" ? "Exército"
+      : "Civil";
+    return { nomeFmt: `${pessoa.nome} (${categoria})`, origem: `pessoas:${pessoa.tipo}` };
   }
   return null;
 }

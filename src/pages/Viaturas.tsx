@@ -265,7 +265,7 @@ export default function Viaturas() {
               disabled={autenticarMutation.isPending || !destino.trim()}
               label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
               hint={destino.trim() ? "Posicione o dedo no leitor para confirmar a saída." : "Informe o destino antes da biometria."}
-              autoRefocus={!!destino.trim()}
+              autoRefocus={true}
             />
           </div>
         </DialogContent>
@@ -292,7 +292,7 @@ export default function Viaturas() {
               disabled={autenticarMutation.isPending || !kmRetorno.trim()}
               label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
               hint={kmRetorno.trim() ? "Posicione o dedo no leitor para confirmar o retorno." : "Informe a quilometragem antes da biometria."}
-              autoRefocus={!!kmRetorno.trim()}
+              autoRefocus={true}
             />
           </div>
         </DialogContent>

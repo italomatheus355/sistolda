@@ -29,7 +29,7 @@ const onlyDigits = (v: string) => (v || "").replace(/\D/g, "");
 
 const TIPO_LABEL: Record<PessoaTipo, string> = {
   marinha: "Militar da Marinha",
-  exercito: "Militar Externo",
+  exercito: "Militar do Exército",
   civil: "Civil",
 };
 const TIPO_BADGE: Record<PessoaTipo, "default" | "secondary" | "outline"> = {
@@ -143,8 +143,9 @@ export default function Visitantes() {
       const merged = { ...prev, ...next };
       // Auto-gerar NIP para externo/civil a partir do CPF, caso o usuário não tenha digitado manualmente.
       if (merged.tipo !== "marinha") {
-        if (merged.cpf && (!merged.identificador || merged.identificador === nipFromCpf(prev.cpf || ""))) {
-          merged.identificador = nipFromCpf(merged.cpf);
+        const generated = nipFromCpf(merged.cpf || "");
+        if (generated && (!merged.identificador || merged.identificador !== generated)) {
+          merged.identificador = generated;
         }
       }
       return merged;
@@ -261,7 +262,7 @@ export default function Visitantes() {
               hint={destino.trim()
                 ? "Posicione o dedo no leitor — o NIP será capturado automaticamente."
                 : "Preencha o destino antes de capturar a biometria."}
-              autoRefocus={!!destino.trim()}
+              autoRefocus={true}
             />
           </div>
         </DialogContent>
@@ -275,7 +276,7 @@ export default function Visitantes() {
               <UserPlus className="w-5 h-5 text-primary" /> Cadastro de Pessoas
             </DialogTitle>
             <DialogDescription>
-              Marinha, Exército e Civil. Para militares externos e civis, o NIP é gerado automaticamente como
+              Marinha, Exército e Civil. Para militares do Exército e civis, o NIP é gerado automaticamente como
               <span className="font-mono"> 0000 + 4 últimos dígitos do CPF</span>.
             </DialogDescription>
           </DialogHeader>
@@ -293,7 +294,7 @@ export default function Visitantes() {
                   <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="marinha">Militar da Marinha</SelectItem>
-                    <SelectItem value="exercito">Militar Externo</SelectItem>
+                    <SelectItem value="exercito">Militar do Exército</SelectItem>
                     <SelectItem value="civil">Civil</SelectItem>
                   </SelectContent>
                 </Select>
