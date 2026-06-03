@@ -16,7 +16,8 @@ function resolverIdentidade(nip) {
   const militar = Militares.getByNip(nip);
   if (militar) {
     const posto = (militar.posto_graduacao || "").trim();
-    return { nomeFmt: posto ? `${posto} ${militar.nome}` : militar.nome, origem: "militares" };
+    const nomeBase = posto ? `${posto} ${militar.nome}` : militar.nome;
+    return { nomeFmt: `${nomeBase} (Marinha)`, origem: "militares" };
   }
   const pessoa = Pessoas.getByIdentificador(nip);
   if (pessoa) {
