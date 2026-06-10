@@ -40,7 +40,8 @@ CREATE TABLE IF NOT EXISTS retiradas_chaves (
   data_devolucao TEXT,
   cabo_retirada TEXT,
   cabo_devolucao TEXT,
-  status TEXT NOT NULL DEFAULT 'em_uso' CHECK (status IN ('em_uso','devolvida'))
+  status TEXT NOT NULL DEFAULT 'em_uso' CHECK (status IN ('em_uso','devolvida')),
+  pessoa_tipo TEXT DEFAULT 'marinha'
 );
 
 CREATE TABLE IF NOT EXISTS viaturas (
@@ -67,7 +68,8 @@ CREATE TABLE IF NOT EXISTS historico_viaturas (
   data_retorno TEXT,
   cabo_saida TEXT,
   cabo_retorno TEXT,
-  status TEXT NOT NULL DEFAULT 'em_uso' CHECK (status IN ('em_uso','retornada'))
+  status TEXT NOT NULL DEFAULT 'em_uso' CHECK (status IN ('em_uso','retornada')),
+  pessoa_tipo TEXT DEFAULT 'marinha'
 );
 
 CREATE TABLE IF NOT EXISTS visitantes (
@@ -132,7 +134,8 @@ CREATE TABLE IF NOT EXISTS materiais (
   nip TEXT NOT NULL,
   destino TEXT NOT NULL,
   data_registro TEXT NOT NULL DEFAULT (datetime('now')),
-  cabo_registro TEXT
+  cabo_registro TEXT,
+  pessoa_tipo TEXT DEFAULT 'marinha'
 );
 
 CREATE TABLE IF NOT EXISTS biometrias (
