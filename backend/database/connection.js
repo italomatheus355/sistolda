@@ -49,8 +49,15 @@ function initDb() {
   migrateLogsAuditoria();
   migrateUsers();
   migratePessoas();
+  migrateOperationalTables();
   seed();
   console.log("[SISTOLDA] Banco SQLite inicializado em", DB_PATH);
+}
+
+function migrateOperationalTables() {
+  addColumnIfMissing("retiradas_chaves", "pessoa_tipo", "ALTER TABLE retiradas_chaves ADD COLUMN pessoa_tipo TEXT DEFAULT 'marinha'");
+  addColumnIfMissing("historico_viaturas", "pessoa_tipo", "ALTER TABLE historico_viaturas ADD COLUMN pessoa_tipo TEXT DEFAULT 'marinha'");
+  addColumnIfMissing("materiais", "pessoa_tipo", "ALTER TABLE materiais ADD COLUMN pessoa_tipo TEXT DEFAULT 'marinha'");
 }
 
 function migratePessoas() {
