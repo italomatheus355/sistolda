@@ -7,7 +7,7 @@ module.exports = {
     db.prepare("UPDATE chaves SET status = ?, militar_responsavel = ? WHERE id = ?")
       .run(status, militar, id),
 
-  retirar: ({ chave, militar, nip, cabo }) => {
+  retirar: ({ chave, militar, nip, cabo, pessoa_tipo }) => {
     const tx = db.transaction(() => {
       db.prepare("UPDATE chaves SET status='emprestada', militar_responsavel=? WHERE id=?")
         .run(militar, chave.id);
@@ -15,7 +15,7 @@ module.exports = {
         INSERT INTO retiradas_chaves
           (chave_id, chave_numero, chave_nome, militar, nip, cabo_retirada, status, pessoa_tipo)
         VALUES (?,?,?,?,?,?, 'em_uso', ?)
-      `).run(chave.id, chave.numero, chave.nome, militar, nip || null, cabo || null, arguments[0].tipo || 'marinha');
+      `).run(chave.id, chave.numero, chave.nome, militar, nip || null, cabo || null, pessoa_tipo || 'marinha');
       return r.lastInsertRowid;
     });
     return tx();

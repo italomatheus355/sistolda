@@ -53,7 +53,7 @@ exports.autenticarBiometria = (req, res, next) => {
           const chave = Chaves.getById(chave_id);
           if (!chave) return res.status(404).json({ error: `Chave ${chave_id} não encontrada.` });
           if (chave.status === "emprestada") return res.status(400).json({ error: `Chave Nº ${chave.numero} já está emprestada.` });
-          Chaves.retirar({ chave, militar: nomeFmt, nip, cabo: caboOp, tipo: ident.tipo });
+          Chaves.retirar({ chave, militar: nomeFmt, nip, cabo: caboOp, pessoa_tipo: ident.tipo });
           r.push(chave);
         }
         const nums = r.map((c) => String(c.numero).padStart(2, "0")).join(", ");
@@ -140,7 +140,7 @@ exports.autenticarBiometria = (req, res, next) => {
         const viatura = Viaturas.getById(viatura_id);
         if (!viatura) return res.status(404).json({ error: "Viatura não encontrada." });
         if (viatura.status !== "disponivel") return res.status(400).json({ error: "Viatura indisponível." });
-        const id = Viaturas.saida({ viatura, motorista: nomeFmt, nip, destino: p.destino || "—", cabo: caboOp, tipo: ident.tipo });
+        const id = Viaturas.saida({ viatura, motorista: nomeFmt, nip, destino: p.destino || "—", cabo: caboOp, pessoa_tipo: ident.tipo });
         descricao = `${nomeFmt} (NIP ${nip}) saiu com a viatura ${viatura.prefixo} para ${p.destino || "—"}.`;
         logAuditoria(req, { modulo, acao, nip, nome: nomeFmt, descricao });
         return res.json({ success: true, nip, nome: nomeFmt, descricao, id });
