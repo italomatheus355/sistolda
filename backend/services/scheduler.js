@@ -40,14 +40,22 @@ async function runRelatorioDiario({ dateStr = isoDate(), origin = "scheduler", a
 
   try {
     const r = await gerarRelatorioDiario(dateStr);
-    log("BACKUP", `OK local=${r.localOk} rede=${r.networkOk} → ${r.pdfPath}`);
-    if (!r.networkOk) {
-      log("BACKUP", `Cópia de rede falhou: ${r.networkError || "indisponível"} (mantida cópia local).`);
-      audit({ acao: "relatorio.rede_falha", descricao: `Rede indisponível para ${dateStr}: ${r.networkError || ""}` });
+    log("BACKUP", `Relatório local=${r.localOk ? "OK" : "FALHA"} rede=${r.networkOk ? "OK" : "FALHA"}`);
+
+    if (r.localOk) {
+      audit({ acao: "relatorio.local_concluido", descricao: `Backup local de relatórios concluído.` });
     }
+
+    if (r.networkOk) {
+      audit({ acao: "relatorio.rede_concluido", descricao: `Backup em rede de relatórios concluído.` });
+    } else {
+      log("BACKUP", `Backup em rede não executado (caminho indisponível).`);
+      audit({ acao: "relatorio.rede_indisponivel", descricao: `Backup em rede não executado (caminho indisponível).` });
+    }
+
     audit({
       acao: "relatorio.sucesso",
-      descricao: `Relatório diário ${dateStr} salvo em ${r.dir}. PDF=${path.basename(r.pdfPath)} XLSX=${path.basename(r.xlsxPath)}.`,
+      descricao: `Relatório diário ${dateStr} processado. PDF=${path.basename(r.pdfPath)} XLSX=${path.basename(r.xlsxPath)}.`,
     });
     return { ok: true, ...r };
   } catch (e) {
