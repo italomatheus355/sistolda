@@ -40,14 +40,22 @@ async function runRelatorioDiario({ dateStr = isoDate(), origin = "scheduler", a
 
   try {
     const r = await gerarRelatorioDiario(dateStr);
-    log("BACKUP", `OK local=${r.localOk} rede=${r.networkOk} → ${r.pdfPath}`);
-    if (!r.networkOk) {
-      log("BACKUP", `Cópia de rede falhou: ${r.networkError || "indisponível"} (mantida cópia local).`);
-      audit({ acao: "relatorio.rede_falha", descricao: `Rede indisponível para ${dateStr}: ${r.networkError || ""}` });
+    log("BACKUP", `Relatório local=${r.localOk ? "OK" : "FALHA"} rede=${r.networkOk ? "OK" : "FALHA"}`);
+
+    if (r.localOk) {
+      audit({ acao: "relatorio.local_concluido", descricao: `Backup local de relatórios concluído.` });
     }
+
+    if (r.networkOk) {
+      audit({ acao: "relatorio.rede_concluido", descricao: `Backup em rede de relatórios concluído.` });
+    } else {
+      log("BACKUP", `Backup em rede não executado (caminho indisponível).`);
+      audit({ acao: "relatorio.rede_indisponivel", descricao: `Backup em rede não executado (caminho indisponível).` });
+    }
+
     audit({
       acao: "relatorio.sucesso",
-      descricao: `Relatório diário ${dateStr} salvo em ${r.dir}. PDF=${path.basename(r.pdfPath)} XLSX=${path.basename(r.xlsxPath)}.`,
+      descricao: `Relatório diário ${dateStr} processado. PDF=${path.basename(r.pdfPath)} XLSX=${path.basename(r.xlsxPath)}.`,
     });
     return { ok: true, ...r };
   } catch (e) {
@@ -81,14 +89,26 @@ async function backupDatabase() {
     const res = await writeRedundant("DATABASE", fn, async (target) => {
       await db.backup(target);
     });
-    if (!res.localPath && !res.networkPath) throw new Error(res.localError || res.networkError || "indisponível");
-    log("BACKUP-DB", `OK local=${!!res.localPath} rede=${!!res.networkPath} → ${res.localPath || res.networkPath}`);
-    if (!res.networkPath) {
-      log("BACKUP-DB", `Cópia de rede falhou: ${res.networkError || "indisponível"} (mantida local).`);
-      audit({ acao: "backup_db.rede_falha", descricao: res.networkError || "rede indisponível" });
+    const localOk = !!res.localPath;
+    const networkOk = !!res.networkPath;
+
+    if (!localOk && !networkOk) throw new Error(res.localError || res.networkError || "indisponível");
+
+    log("BACKUP-DB", `Local=${localOk ? "OK" : "FALHA"} Rede=${networkOk ? "OK" : "FALHA"}`);
+
+    if (localOk) {
+      audit({ acao: "backup_db.local_concluido", descricao: `Backup local DATABASE/${fn} concluído.` });
     }
-    audit({ acao: "backup_db.sucesso", descricao: `DB salvo em ${res.localPath || res.networkPath}` });
-  } catch (e) { err("BACKUP-DB", e.message); audit({ acao: "backup_db.erro", descricao: e.message }); }
+    if (networkOk) {
+      audit({ acao: "backup_db.rede_concluido", descricao: `Backup em rede DATABASE/${fn} concluído.` });
+    } else {
+      log("BACKUP-DB", `Cópia de rede não executada: ${res.networkError || "caminho indisponível"}.`);
+      audit({ acao: "backup_db.rede_indisponivel", descricao: `Backup em rede não executado: ${res.networkError || "caminho indisponível"}.` });
+    }
+  } catch (e) {
+    err("BACKUP-DB", e.message);
+    audit({ acao: "backup_db.erro", descricao: e.message });
+  }
 }
 
 async function backupLogs() {
@@ -98,10 +118,23 @@ async function backupLogs() {
     const data = JSON.stringify(rows, null, 2);
     const res = await writeRedundant("LOGS", fn, (target) => fs.promises.writeFile(target, data, "utf8"));
     if (!res.localPath && !res.networkPath) throw new Error(res.localError || res.networkError || "indisponível");
-    log("BACKUP-LOGS", `OK (${rows.length}) local=${!!res.localPath} rede=${!!res.networkPath}`);
-    if (!res.networkPath) audit({ acao: "backup_logs.rede_falha", descricao: res.networkError || "rede indisponível" });
-    audit({ acao: "backup_logs.sucesso", descricao: `${rows.length} logs salvos.` });
-  } catch (e) { err("BACKUP-LOGS", e.message); audit({ acao: "backup_logs.erro", descricao: e.message }); }
+    const localOk = !!res.localPath;
+    const networkOk = !!res.networkPath;
+
+    log("BACKUP-LOGS", `Logs (${rows.length}) Local=${localOk ? "OK" : "FALHA"} Rede=${networkOk ? "OK" : "FALHA"}`);
+
+    if (localOk) {
+      audit({ acao: "backup_logs.local_concluido", descricao: `Backup local de logs (${rows.length} registros) concluído.` });
+    }
+    if (networkOk) {
+      audit({ acao: "backup_logs.rede_concluido", descricao: `Backup em rede de logs concluído.` });
+    } else {
+      audit({ acao: "backup_logs.rede_indisponivel", descricao: `Backup em rede de logs não executado (caminho indisponível).` });
+    }
+  } catch (e) {
+    err("BACKUP-LOGS", e.message);
+    audit({ acao: "backup_logs.erro", descricao: e.message });
+  }
 }
 
 function integrityCheck() {

@@ -18,7 +18,7 @@ const { db } = require("../database/connection");
 
 const NETWORK_BASE =
   process.env.SISTOLDA_BACKUP_DIR ||
-  "\\\\esqdhu41fs\\grupos\\informatica\\ADMINISTRATIVOS\\backup_sistolda";
+  "Y:\\informatica\\ADMINISTRATIVOS\\BACKUP-SISTOLDA";
 const LOCAL_BASE =
   process.env.SISTOLDA_LOCAL_BACKUP_DIR ||
   "C:\\Users\\SISTOLDA\\BACKUPS";
