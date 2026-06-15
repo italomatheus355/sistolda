@@ -1,4 +1,4 @@
-import { Key, Car, Users, Package, Calendar, UserCog, Plane, LogOut, LayoutDashboard, Users2, ShieldAlert, FileText } from "lucide-react";
+import { Key, Car, Users, Package, Calendar, UserCog, Plane, LogOut, LayoutDashboard, Users2, ShieldAlert, FileText, IdCard } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -26,7 +26,7 @@ const allModules = [
 
 const adminModules = [
   { title: "Escala",      url: "/escala",     icon: Calendar,    route: "escala" },
-  
+  { title: "Pessoas",     url: "/pessoas",    icon: IdCard,      route: "pessoas" },
   { title: "Relatórios",  url: "/relatorios", icon: FileText,    route: "relatorios" },
   { title: "Auditoria",   url: "/auditoria",  icon: ShieldAlert, route: "auditoria" },
   { title: "Usuários",    url: "/usuarios",   icon: UserCog,     route: "usuarios" },
