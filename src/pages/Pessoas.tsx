@@ -25,6 +25,12 @@ const TIPO_BADGE: Record<PessoaTipo, string> = {
   civil: "bg-muted text-muted-foreground border-border",
 };
 
+const GRADUACOES: Record<PessoaTipo, string[]> = {
+  marinha: ["MN", "CB", "3°SG", "2°SG", "1°SG", "SO"],
+  exercito: ["SD", "CB", "3°SG", "2°SG", "1°SG", "ST"],
+  civil: [],
+};
+
 const emptyForm: PessoaInput & { id?: number } = {
   nome: "",
   tipo: "marinha",
