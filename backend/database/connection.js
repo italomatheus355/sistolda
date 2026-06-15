@@ -77,6 +77,35 @@ function migratePessoas() {
   addColumnIfMissing("pessoas", "posto_graduacao", "ALTER TABLE pessoas ADD COLUMN posto_graduacao TEXT");
 }
 
+// Espelha a tabela legada `militares` (usada por biometria/chaves) em `pessoas`.
+// Garante que TODOS os militares cadastrados apareçam na tela /pessoas,
+// usando o NIP como identificador único.
+function backfillPessoasFromMilitares() {
+  const hasMilitares = db.prepare(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='militares'"
+  ).get();
+  if (!hasMilitares) return;
+  const militares = db.prepare(
+    "SELECT nip, nome, posto_graduacao FROM militares WHERE IFNULL(ativo,1) = 1"
+  ).all();
+  const insert = db.prepare(`
+    INSERT INTO pessoas (nome, tipo, identificador, posto_graduacao)
+    VALUES (?, 'marinha', ?, ?)
+    ON CONFLICT(identificador) DO UPDATE SET
+      nome = excluded.nome,
+      posto_graduacao = COALESCE(pessoas.posto_graduacao, excluded.posto_graduacao)
+  `);
+  const tx = db.transaction(() => {
+    for (const m of militares) {
+      const nip = String(m.nip || "").replace(/\D/g, "");
+      if (!nip) continue;
+      insert.run(m.nome, nip, m.posto_graduacao || null);
+    }
+  });
+  tx();
+  console.log(`[SISTOLDA] Pessoas sincronizadas a partir de militares: ${militares.length}`);
+}
+
 function addColumnIfMissing(table, col, sql) {
   const cols = db.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
   if (!cols.includes(col)) db.exec(sql);
@@ -140,6 +169,7 @@ function seed() {
   }
 
   seedMilitares(db);
+  backfillPessoasFromMilitares();
 
   const userCount = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
   if (userCount === 0) {
