@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.get_cabo_on_duty() FROM authenticated;
