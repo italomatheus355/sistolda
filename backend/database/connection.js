@@ -169,6 +169,7 @@ function seed() {
   }
 
   seedMilitares(db);
+  backfillPessoasFromMilitares();
 
   const userCount = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
   if (userCount === 0) {
