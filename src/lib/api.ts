@@ -180,6 +180,7 @@ export interface ApiPessoa {
   cpf: string | null;
   rg: string | null;
   telefone: string | null;
+  posto_graduacao: string | null;
   created_at: string;
 }
 export interface PessoaInput {
@@ -189,6 +190,7 @@ export interface PessoaInput {
   cpf?: string | null;
   rg?: string | null;
   telefone?: string | null;
+  posto_graduacao?: string | null;
 }
 
 // ============ Helpers ============
@@ -333,7 +335,13 @@ export const api = {
   },
 
   // ===== Cadastramento de Pessoas =====
-  listPessoas: () => request<ApiPessoa[]>("/pessoas"),
+  listPessoas: (params: { q?: string; tipo?: PessoaTipo | "" } = {}) => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.tipo) qs.set("tipo", params.tipo);
+    const s = qs.toString();
+    return request<ApiPessoa[]>(`/pessoas${s ? `?${s}` : ""}`);
+  },
   createPessoa: (body: PessoaInput) =>
     request<{ ok: true; id: number; pessoa: ApiPessoa }>("/pessoas", { method: "POST", body: JSON.stringify(body) }),
   updatePessoa: (id: number, body: PessoaInput) =>

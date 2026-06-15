@@ -12,6 +12,7 @@ function normalize(p) {
     cpf: onlyDigits(p.cpf) || null,
     rg: p.rg ? String(p.rg).trim() : null,
     telefone: p.telefone ? String(p.telefone).trim() : null,
+    posto_graduacao: p.posto_graduacao ? String(p.posto_graduacao).trim().toUpperCase() : null,
   };
 }
 
@@ -34,23 +35,26 @@ function gerarNipPorCpf(cpf) {
 module.exports = {
   TIPOS,
   gerarNipPorCpf,
-  list: ({ q } = {}) => {
+  list: ({ q, tipo } = {}) => {
+    const where = [];
+    const params = [];
     if (q) {
       const like = `%${q}%`;
-      return db.prepare(`
-        SELECT * FROM pessoas
-        WHERE nome LIKE ? OR identificador LIKE ? OR IFNULL(cpf,'') LIKE ?
-        ORDER BY nome
-      `).all(like, like, like);
+      where.push("(nome LIKE ? OR identificador LIKE ? OR IFNULL(cpf,'') LIKE ?)");
+      params.push(like, like, like);
     }
-    return db.prepare("SELECT * FROM pessoas ORDER BY nome").all();
+    if (tipo && TIPOS.includes(String(tipo).toLowerCase())) {
+      where.push("tipo = ?");
+      params.push(String(tipo).toLowerCase());
+    }
+    const sql = `SELECT * FROM pessoas ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY nome`;
+    return db.prepare(sql).all(...params);
   },
   getById: (id) => db.prepare("SELECT * FROM pessoas WHERE id = ?").get(id),
   getByIdentificador: (id) =>
     db.prepare("SELECT * FROM pessoas WHERE identificador = ?").get(onlyDigits(id)),
   create: (raw) => {
     const p = normalize(raw);
-    // Para externo/civil: se identificador vier vazio, gerar a partir do CPF.
     if (!p.identificador && p.tipo !== "marinha" && p.cpf) {
       p.identificador = gerarNipPorCpf(p.cpf) || "";
     }
@@ -58,13 +62,12 @@ module.exports = {
     if (err) { const e = new Error(err); e.status = 400; throw e; }
     const exists = db.prepare("SELECT id FROM pessoas WHERE identificador = ?").get(p.identificador);
     if (exists) {
-      // Regra: se já existir o NIP, reutilizar o cadastro existente
       return exists.id;
     }
     const r = db.prepare(`
-      INSERT INTO pessoas (nome, tipo, identificador, cpf, rg, telefone)
-      VALUES (?,?,?,?,?,?)
-    `).run(p.nome, p.tipo, p.identificador, p.cpf, p.rg, p.telefone);
+      INSERT INTO pessoas (nome, tipo, identificador, cpf, rg, telefone, posto_graduacao)
+      VALUES (?,?,?,?,?,?,?)
+    `).run(p.nome, p.tipo, p.identificador, p.cpf, p.rg, p.telefone, p.posto_graduacao);
     return r.lastInsertRowid;
   },
   update: (id, raw) => {
@@ -77,10 +80,10 @@ module.exports = {
     const conflict = db.prepare(
       "SELECT id FROM pessoas WHERE identificador = ? AND id <> ?"
     ).get(p.identificador, id);
-    if (conflict) { const e = new Error("Identificador já em uso por outra pessoa."); e.status = 409; throw e; }
+    if (conflict) { const e = new Error("NIP já em uso por outra pessoa cadastrada."); e.status = 409; throw e; }
     db.prepare(`
-      UPDATE pessoas SET nome=?, tipo=?, identificador=?, cpf=?, rg=?, telefone=? WHERE id=?
-    `).run(p.nome, p.tipo, p.identificador, p.cpf, p.rg, p.telefone, id);
+      UPDATE pessoas SET nome=?, tipo=?, identificador=?, cpf=?, rg=?, telefone=?, posto_graduacao=? WHERE id=?
+    `).run(p.nome, p.tipo, p.identificador, p.cpf, p.rg, p.telefone, p.posto_graduacao, id);
   },
   remove: (id) => db.prepare("DELETE FROM pessoas WHERE id = ?").run(id),
 };

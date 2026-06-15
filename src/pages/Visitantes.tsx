@@ -69,7 +69,7 @@ export default function Visitantes() {
     queryKey: ["visitantes"], queryFn: api.listVisitantes, ...SYNC_OPTIONS,
   });
   const { data: pessoas = [] } = useQuery({
-    queryKey: ["pessoas"], queryFn: api.listPessoas, ...SYNC_OPTIONS,
+    queryKey: ["pessoas"], queryFn: () => api.listPessoas(), ...SYNC_OPTIONS,
   });
 
   // === Mutations ===

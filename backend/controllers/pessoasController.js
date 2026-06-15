@@ -3,7 +3,7 @@ const Pessoas = require("../models/pessoasModel");
 const { logAuditoria } = require("../services/auditService");
 
 exports.list = (req, res, next) => {
-  try { res.json(Pessoas.list({ q: req.query.q })); }
+  try { res.json(Pessoas.list({ q: req.query.q, tipo: req.query.tipo })); }
   catch (e) { next(e); }
 };
 
