@@ -245,7 +245,7 @@ export default function Pessoas() {
               </div>
               <div>
                 <Label>Categoria *</Label>
-                <Select value={editing.tipo} onValueChange={(v) => setEditing({ ...editing, tipo: v as PessoaTipo })}>
+                <Select value={editing.tipo} onValueChange={(v) => setEditing({ ...editing, tipo: v as PessoaTipo, posto_graduacao: v === "civil" ? "" : editing.posto_graduacao })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="marinha">Militar da Marinha</SelectItem>
