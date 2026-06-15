@@ -26,7 +26,7 @@ const TIPO_BADGE: Record<PessoaTipo, string> = {
 };
 
 const GRADUACOES: Record<PessoaTipo, string[]> = {
-  marinha: ["MN", "CB", "3°SG", "2°SG", "1°SG", "SO"],
+  marinha: ["MN", "CB", "3°SG", "2°SG", "1°SG", "SO", "2°TEN", "1°TEN", "CT", "CC", "CF"],
   exercito: ["SD", "CB", "3°SG", "2°SG", "1°SG", "ST"],
   civil: [],
 };
