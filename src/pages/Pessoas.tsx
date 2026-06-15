@@ -256,12 +256,21 @@ export default function Pessoas() {
               </div>
               <div>
                 <Label>Graduação / Posto</Label>
-                <Input
-                  value={editing.posto_graduacao || ""}
-                  onChange={(e) => setEditing({ ...editing, posto_graduacao: e.target.value.toUpperCase() })}
-                  placeholder="Ex.: SO, 1SG, SG, CB, MN"
+                <Select
+                  value={editing.posto_graduacao || "__none__"}
+                  onValueChange={(v) => setEditing({ ...editing, posto_graduacao: v === "__none__" ? "" : v })}
                   disabled={editing.tipo === "civil"}
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={editing.tipo === "civil" ? "N/A" : "Selecione a graduação"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">— Sem graduação —</SelectItem>
+                    {GRADUACOES[editing.tipo].map((g) => (
+                      <SelectItem key={g} value={g}>{g}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <Label>NIP / Identificador *</Label>
