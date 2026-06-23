@@ -104,6 +104,27 @@ function backfillPessoasFromMilitares() {
   });
   tx();
   console.log(`[SISTOLDA] Pessoas sincronizadas a partir de militares: ${militares.length}`);
+
+  // Reverso: re-aplica em `militares` qualquer edição feita em `pessoas`
+  // (nome / posto_graduacao). Garante que biometria, chaves, viaturas etc.
+  // leiam SEMPRE o cadastro administrativo atualizado, mesmo após restart.
+  const pessoasMarinha = db.prepare(
+    "SELECT identificador, nome, posto_graduacao FROM pessoas WHERE tipo = 'marinha'"
+  ).all();
+  const upd = db.prepare(`
+    UPDATE militares
+       SET nome = ?, posto_graduacao = COALESCE(?, posto_graduacao), ativo = 1
+     WHERE nip = ?
+  `);
+  const txp = db.transaction(() => {
+    for (const p of pessoasMarinha) {
+      const nip = String(p.identificador || "").replace(/\D/g, "");
+      if (!nip) continue;
+      upd.run(p.nome, p.posto_graduacao || null, nip);
+    }
+  });
+  txp();
+  console.log(`[SISTOLDA] Militares re-sincronizados a partir de pessoas: ${pessoasMarinha.length}`);
 }
 
 function addColumnIfMissing(table, col, sql) {
