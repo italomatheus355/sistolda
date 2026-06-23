@@ -134,13 +134,13 @@ const MILITARES = [
 ];
 
 function seedMilitares(db) {
+  // IMPORTANTE: o seed só insere militares que AINDA NÃO existem na base.
+  // NUNCA sobrescreve nome/posto_graduacao de militares já cadastrados,
+  // pois isso desfaria promoções e correções feitas no Gerenciamento de Pessoas.
   const insert = db.prepare(`
     INSERT INTO militares (nip, nome, posto_graduacao, ativo)
     VALUES (?, ?, ?, 1)
-    ON CONFLICT(nip) DO UPDATE SET
-      nome = excluded.nome,
-      posto_graduacao = excluded.posto_graduacao,
-      ativo = 1
+    ON CONFLICT(nip) DO NOTHING
   `);
   const tx = db.transaction(() => {
     for (const [posto, nip, nome] of MILITARES) {
@@ -148,7 +148,7 @@ function seedMilitares(db) {
     }
   });
   tx();
-  console.log(`[SISTOLDA] Militares sincronizados: ${MILITARES.length}`);
+  console.log(`[SISTOLDA] Militares — seed inicial aplicado (sem sobrescrever edições): ${MILITARES.length}`);
 }
 
 module.exports = { MILITARES, seedMilitares };
