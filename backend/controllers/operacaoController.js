@@ -79,7 +79,7 @@ exports.autenticarBiometria = (req, res, next) => {
           r.push(chave);
         }
         const nums = r.map((c) => String(c.numero).padStart(2, "0")).join(", ");
-        descricao = `${nomeFmt} (NIP ${nip}) devolveu ${r.length === 1 ? "a chave" : "as chaves"} ${nums}.`;
+        descricao = `${nomeFmt} (NIP ${nip}) recebeu ${r.length === 1 ? "a chave" : "as chaves"} ${nums}.`;
         logAuditoria(req, { modulo, acao, nip, nome: nomeFmt, descricao });
         return res.json({ success: true, nip, nome: nomeFmt, descricao, chaves: r.map((c) => ({ id: c.id, numero: c.numero, nome: c.nome })) });
       }
