@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS militares (
   posto_graduacao TEXT,
   biometria_id TEXT,
   ativo INTEGER NOT NULL DEFAULT 1,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   username TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
   role TEXT NOT NULL CHECK (role IN ('admin','operacoes','segorg','servico')),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS chaves (
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS retiradas_chaves (
   chave_nome TEXT NOT NULL,
   militar TEXT NOT NULL,
   nip TEXT,
-  data_retirada TEXT NOT NULL DEFAULT (datetime('now')),
+  data_retirada TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   data_devolucao TEXT,
   cabo_retirada TEXT,
   cabo_devolucao TEXT,
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS historico_viaturas (
   km_retorno INTEGER,
   km_rodado INTEGER,
   autonomia_informada TEXT,
-  data_saida TEXT NOT NULL DEFAULT (datetime('now')),
+  data_saida TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   data_retorno TEXT,
   cabo_saida TEXT,
   cabo_retorno TEXT,
@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS visitantes (
   documento TEXT NOT NULL,
   militar_responsavel TEXT NOT NULL,
   local_destino TEXT NOT NULL,
-  hora_entrada TEXT NOT NULL DEFAULT (datetime('now')),
+  hora_entrada TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   hora_saida TEXT,
   observacoes TEXT,
   cabo_registro TEXT,
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS visitantes_civis (
   telefone TEXT,
   empresa TEXT,
   observacoes TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS militares_externos (
@@ -110,7 +110,7 @@ CREATE TABLE IF NOT EXISTS militares_externos (
   telefone TEXT,
   biometria_template TEXT,
   biometria_leituras INTEGER NOT NULL DEFAULT 0,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS visitantes_recorrentes (
@@ -124,7 +124,7 @@ CREATE TABLE IF NOT EXISTS visitantes_recorrentes (
   biometria_template TEXT,
   biometria_leituras INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'ativo' CHECK (status IN ('ativo','inativo')),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS materiais (
@@ -133,7 +133,7 @@ CREATE TABLE IF NOT EXISTS materiais (
   militar TEXT NOT NULL,
   nip TEXT NOT NULL,
   destino TEXT NOT NULL,
-  data_registro TEXT NOT NULL DEFAULT (datetime('now')),
+  data_registro TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   cabo_registro TEXT,
   pessoa_tipo TEXT DEFAULT 'marinha'
 );
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS biometrias (
   template TEXT,
   leituras INTEGER NOT NULL DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'ativa' CHECK (status IN ('ativa','inativa')),
-  data_cadastro TEXT NOT NULL DEFAULT (datetime('now'))
+  data_cadastro TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS pdv (
@@ -155,12 +155,12 @@ CREATE TABLE IF NOT EXISTS pdv (
   missoes TEXT NOT NULL DEFAULT '[]',
   config_asd TEXT,
   material_gsar TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS logs_auditoria (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+  timestamp TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   modulo TEXT,
   acao TEXT,
   nip TEXT,
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS pessoas (
   nome TEXT NOT NULL,
   tipo TEXT NOT NULL CHECK (tipo IN ('marinha','exercito','civil')),
   identificador TEXT UNIQUE NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_pessoas_ident ON pessoas(identificador);
 

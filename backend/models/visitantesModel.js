@@ -33,5 +33,5 @@ module.exports = {
     return r.lastInsertRowid;
   },
   registrarSaida: (id) =>
-    db.prepare("UPDATE visitantes SET hora_saida = datetime('now') WHERE id = ?").run(id),
+    db.prepare("UPDATE visitantes SET hora_saida = datetime('now','localtime') WHERE id = ?").run(id),
 };

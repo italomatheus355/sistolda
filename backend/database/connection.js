@@ -67,7 +67,7 @@ function migratePessoas() {
       nome TEXT NOT NULL,
       tipo TEXT NOT NULL CHECK (tipo IN ('marinha','exercito','civil')),
       identificador TEXT UNIQUE NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
     );
     CREATE INDEX IF NOT EXISTS idx_pessoas_ident ON pessoas(identificador);
   `);
@@ -136,7 +136,7 @@ function migrateLogsAuditoria() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS logs_auditoria (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      timestamp TEXT NOT NULL DEFAULT (datetime('now','localtime')),
       modulo TEXT, acao TEXT, nip TEXT, nome TEXT, descricao TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_logs_auditoria_ts ON logs_auditoria(timestamp);

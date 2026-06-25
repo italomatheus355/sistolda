@@ -29,7 +29,7 @@ module.exports = {
       if (!reg) throw Object.assign(new Error("Nenhuma retirada em aberto"), { status: 400 });
       db.prepare(`
         UPDATE retiradas_chaves
-        SET status='devolvida', data_devolucao=datetime('now'), cabo_devolucao=?
+        SET status='devolvida', data_devolucao=datetime('now','localtime'), cabo_devolucao=?
         WHERE id=?
       `).run(cabo || null, reg.id);
       db.prepare("UPDATE chaves SET status='disponivel', militar_responsavel=NULL WHERE id=?")

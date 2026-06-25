@@ -27,7 +27,7 @@ module.exports = {
       const rodado = (km_retorno != null ? km_retorno : 0) - (reg.km_saida != null ? reg.km_saida : 0);
       db.prepare(`
         UPDATE historico_viaturas
-        SET status='retornada', data_retorno=datetime('now'),
+        SET status='retornada', data_retorno=datetime('now','localtime'),
             km_retorno=?, km_rodado=?, autonomia_informada=?, cabo_retorno=?
         WHERE id=?
       `).run(km_retorno, rodado, autonomia != null ? autonomia : null, cabo != null ? cabo : null, reg.id);
