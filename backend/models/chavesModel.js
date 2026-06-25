@@ -13,8 +13,8 @@ module.exports = {
         .run(militar, chave.id);
       const r = db.prepare(`
         INSERT INTO retiradas_chaves
-          (chave_id, chave_numero, chave_nome, militar, nip, cabo_retirada, status, pessoa_tipo)
-        VALUES (?,?,?,?,?,?, 'em_uso', ?)
+          (chave_id, chave_numero, chave_nome, militar, nip, cabo_retirada, status, pessoa_tipo, data_retirada)
+        VALUES (?,?,?,?,?,?, 'em_uso', ?, datetime('now','localtime'))
       `).run(chave.id, chave.numero, chave.nome, militar, nip || null, cabo || null, pessoa_tipo || 'marinha');
       return r.lastInsertRowid;
     });
@@ -29,7 +29,7 @@ module.exports = {
       if (!reg) throw Object.assign(new Error("Nenhuma retirada em aberto"), { status: 400 });
       db.prepare(`
         UPDATE retiradas_chaves
-        SET status='devolvida', data_devolucao=datetime('now'), cabo_devolucao=?
+        SET status='devolvida', data_devolucao=datetime('now','localtime'), cabo_devolucao=?
         WHERE id=?
       `).run(cabo || null, reg.id);
       db.prepare("UPDATE chaves SET status='disponivel', militar_responsavel=NULL WHERE id=?")

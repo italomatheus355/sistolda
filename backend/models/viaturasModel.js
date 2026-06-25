@@ -10,8 +10,8 @@ module.exports = {
       db.prepare("UPDATE viaturas SET status='em_uso' WHERE id=?").run(viatura.id);
       const r = db.prepare(`
         INSERT INTO historico_viaturas
-          (viatura_id, viatura_prefixo, motorista, nip, destino, km_saida, cabo_saida, status, pessoa_tipo)
-        VALUES (?,?,?,?,?,?,?, 'em_uso', ?)
+          (viatura_id, viatura_prefixo, motorista, nip, destino, km_saida, cabo_saida, status, pessoa_tipo, data_saida)
+        VALUES (?,?,?,?,?,?,?, 'em_uso', ?, datetime('now','localtime'))
       `).run(viatura.id, viatura.prefixo, motorista, nip != null ? nip : null, destino, km, cabo != null ? cabo : null, pessoa_tipo || 'marinha');
       return r.lastInsertRowid;
     });
@@ -27,7 +27,7 @@ module.exports = {
       const rodado = (km_retorno != null ? km_retorno : 0) - (reg.km_saida != null ? reg.km_saida : 0);
       db.prepare(`
         UPDATE historico_viaturas
-        SET status='retornada', data_retorno=datetime('now'),
+        SET status='retornada', data_retorno=datetime('now','localtime'),
             km_retorno=?, km_rodado=?, autonomia_informada=?, cabo_retorno=?
         WHERE id=?
       `).run(km_retorno, rodado, autonomia != null ? autonomia : null, cabo != null ? cabo : null, reg.id);

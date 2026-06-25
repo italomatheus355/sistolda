@@ -12,8 +12,8 @@ function logAuditoria(req, entry) {
     const user = req?.user || {};
     db.prepare(`
       INSERT INTO logs_auditoria
-        (modulo, acao, nip, nome, descricao, usuario, perfil, ip, estacao, user_agent)
-      VALUES (?,?,?,?,?,?,?,?,?,?)
+        (modulo, acao, nip, nome, descricao, usuario, perfil, ip, estacao, user_agent, timestamp)
+      VALUES (?,?,?,?,?,?,?,?,?,?, datetime('now','localtime'))
     `).run(
       entry.modulo || null,
       entry.acao || null,

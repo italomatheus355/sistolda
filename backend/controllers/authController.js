@@ -14,7 +14,7 @@ exports.login = (req, res) => {
     : user.password === password;
   if (!ok) return res.status(401).json({ error: "Credenciais inválidas." });
 
-  db.prepare("UPDATE users SET ultimo_acesso = datetime('now') WHERE id = ?").run(user.id);
+  db.prepare("UPDATE users SET ultimo_acesso = datetime('now','localtime') WHERE id = ?").run(user.id);
   const token = signToken(user);
   logAuditoria(req, {
     modulo: "auth", acao: "login", usuario: user.username, perfil: user.role,

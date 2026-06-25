@@ -225,20 +225,27 @@ const Chaves = () => {
                             : "bg-card border-status-borrowed/40 hover:border-status-borrowed"
                     }`}
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center justify-between mb-2">
                       {multiMode && chave.status === "disponivel" ? (
                         <span className={`w-3 h-3 rounded-sm border ${isSelected ? "bg-primary border-primary" : "border-muted-foreground/50"}`} />
                       ) : (
                         <span className={chave.status === "disponivel" ? "status-dot-available" : "status-dot-borrowed"} />
                       )}
-                      <span className="text-base font-mono font-bold text-foreground/90 leading-none">Nº {String(chave.numero).padStart(2, "0")}</span>
+                      <span className="text-[10px] font-mono uppercase tracking-wider text-white/70">
+                        {isSecreta ? "Secreta" : "Geral"}
+                      </span>
                     </div>
-                    <h3 className="text-sm font-semibold text-foreground truncate">{chave.nome}</h3>
-                    {isSecreta && (
-                      <p className="text-[9px] text-status-borrowed font-mono tracking-widest mt-1">SECRETA</p>
-                    )}
+                    <div className="text-center my-3">
+                      <span className="text-4xl font-mono font-extrabold text-white leading-none tracking-tight">
+                        Nº {String(chave.numero).padStart(2, "0")}
+                      </span>
+                    </div>
+                    <h3 className="text-sm font-semibold text-white text-center truncate">{chave.nome}</h3>
+                    <p className="text-[10px] text-white/70 font-mono text-center mt-1 uppercase">
+                      {chave.departamento}
+                    </p>
                     {chave.militar_responsavel && (
-                      <p className="text-[10px] text-status-borrowed mt-2 font-mono truncate">{chave.militar_responsavel}</p>
+                      <p className="text-[10px] text-white mt-2 font-mono truncate text-center">{chave.militar_responsavel}</p>
                     )}
                   </button>
                 );

@@ -170,15 +170,15 @@ export default function Viaturas() {
                 return (
                   <button key={v.id} onClick={() => handleClick(v)} disabled={v.status === "manutencao"}
                     className={`relative p-5 rounded-lg border bg-card transition-all duration-200 text-left hover:scale-[1.02] disabled:opacity-60 disabled:cursor-not-allowed ${statusBorder[v.status]}`}>
-                    <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center justify-between mb-3">
                       <span className={statusDot[v.status]} />
-                      <span className="text-[10px] font-mono text-muted-foreground">{statusLabel[v.status]}</span>
+                      <span className="text-[10px] font-mono text-white/70 uppercase tracking-wider">{statusLabel[v.status]}</span>
                     </div>
-                    <h3 className="text-lg font-bold text-foreground">{v.prefixo}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{v.modelo}</p>
-                    {v.km_atual !== null && <p className="text-[10px] text-muted-foreground mt-1 font-mono">KM: {v.km_atual.toLocaleString("pt-BR")}</p>}
+                    <h3 className="text-3xl font-extrabold text-white text-center tracking-tight uppercase my-2">{v.prefixo}</h3>
+                    <p className="text-sm text-white/80 text-center">{v.modelo}</p>
+                    {v.km_atual !== null && <p className="text-[11px] text-white/70 mt-2 font-mono text-center">KM: {v.km_atual.toLocaleString("pt-BR")}</p>}
                     {motorista && (
-                      <p className="text-xs text-status-borrowed mt-2 font-mono">{motorista}</p>
+                      <p className="text-xs text-white mt-2 font-mono text-center truncate">{motorista}</p>
                     )}
                   </button>
                 );
