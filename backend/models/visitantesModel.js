@@ -9,8 +9,8 @@ module.exports = {
       INSERT INTO visitantes
         (nome, documento, militar_responsavel, local_destino, observacoes, cabo_registro,
          cpf, rg, telefone, organizacao, recorrente_id, tipo,
-         civil_id, militar_externo_id, forca_militar, posto_graduacao, origem_identificacao)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+         civil_id, militar_externo_id, forca_militar, posto_graduacao, origem_identificacao, hora_entrada)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, datetime('now','localtime'))
     `).run(
       v.nome,
       v.documento,
