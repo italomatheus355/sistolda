@@ -13,16 +13,24 @@ const { logAuditoria, listAuditoria } = require("../services/auditService");
 function onlyDigits(v) { return String(v || "").replace(/\D/g, ""); }
 
 function resolverIdentidade(nip) {
+  // Fonte primária: cadastro administrativo (/pessoas). Garante que promoções
+  // e correções feitas em "Gerenciamento de Pessoas" sejam refletidas na hora
+  // na biometria, sem depender de sincronização para a tabela legada `militares`.
+  const pessoa = Pessoas.getByIdentificador(nip);
+  if (pessoa) {
+    if (pessoa.tipo === "marinha") {
+      const posto = (pessoa.posto_graduacao || "").trim();
+      const nomeBase = posto ? `${posto} ${pessoa.nome}` : pessoa.nome;
+      return { nomeFmt: nomeBase, origem: "pessoas:marinha", tipo: "marinha" };
+    }
+    const suffix = pessoa.tipo === "exercito" ? " (EB)" : pessoa.tipo === "civil" ? " (Civil)" : "";
+    return { nomeFmt: `${pessoa.nome}${suffix}`, origem: `pessoas:${pessoa.tipo}`, tipo: pessoa.tipo };
+  }
   const militar = Militares.getByNip(nip);
   if (militar) {
     const posto = (militar.posto_graduacao || "").trim();
     const nomeBase = posto ? `${posto} ${militar.nome}` : militar.nome;
     return { nomeFmt: nomeBase, origem: "militares", tipo: "marinha" };
-  }
-  const pessoa = Pessoas.getByIdentificador(nip);
-  if (pessoa) {
-    const suffix = pessoa.tipo === "exercito" ? " (EB)" : pessoa.tipo === "civil" ? " (Civil)" : "";
-    return { nomeFmt: `${pessoa.nome}${suffix}`, origem: `pessoas:${pessoa.tipo}`, tipo: pessoa.tipo };
   }
   return null;
 }
