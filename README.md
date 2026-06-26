@@ -1,73 +1,121 @@
-# Welcome to your Lovable project
+SISTOLDA
 
-## Project info
+Sistema Integrado de Controle Operacional
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+O SISTOLDA é um sistema web desenvolvido para modernizar e automatizar o controle operacional do Esquadrão HU-41 da Marinha do Brasil.
 
-## How can I edit this code?
+O projeto foi criado para substituir processos manuais, proporcionando maior segurança, rastreabilidade, rapidez e organização no gerenciamento das operações diárias.
 
-There are several ways of editing your application.
+⸻
 
-**Use Lovable**
+Objetivo
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Desenvolver uma plataforma integrada para gerenciamento operacional, permitindo o controle de recursos, usuários e movimentações em tempo real por meio de uma interface web moderna e intuitiva.
 
-Changes made via Lovable will be committed automatically to this repo.
+⸻
 
-**Use your preferred IDE**
+Funcionalidades
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+* Controle de Chaves
+* Controle de Viaturas
+* Controle de Visitantes
+* Controle de Materiais
+* Gerenciamento de Usuários
+* Controle de Permissões
+* Histórico Completo das Movimentações
+* Dashboard em Tempo Real
+* Registro de Auditoria
+* Interface Responsiva
+* Atualização em Tempo Real
+* Integração com Biometria
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+⸻
 
-Follow these steps:
+Tecnologias Utilizadas
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Front-end
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+* React
+* TypeScript
+* Vite
+* Tailwind CSS
 
-# Step 3: Install the necessary dependencies.
-npm i
+Back-end
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+* Node.js
+* Express.js
 
-**Edit a file directly in GitHub**
+Banco de Dados
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+* SQLite
 
-**Use GitHub Codespaces**
+Infraestrutura
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+* Windows 11 Pro
+* Servidor Local
+* Rede Interna (Intranet)
 
-## What technologies are used for this project?
+⸻
 
-This project is built with:
+Arquitetura
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+React
+      │
+      ▼
+Node.js + Express
+      │
+      ▼
+SQLite
+      │
+      ▼
+Servidor Local
+      │
+      ▼
+Estações da Rede Interna
 
-## How can I deploy this project?
+⸻
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Principais Benefícios
 
-## Can I connect a custom domain to my Lovable project?
+* Redução de processos manuais
+* Controle centralizado
+* Registro completo de auditoria
+* Maior segurança operacional
+* Melhor rastreabilidade
+* Interface intuitiva
+* Facilidade de utilização
+* Atualização em tempo real
 
-Yes, you can!
+⸻
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Evolução do Projeto
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+O SISTOLDA encontra-se em constante evolução.
+
+Novas funcionalidades vêm sendo implementadas continuamente com base em testes realizados em ambiente operacional real, buscando aumentar a eficiência, segurança e confiabilidade do sistema.
+
+Entre as melhorias previstas estão:
+
+* Relatórios avançados
+* Dashboards estatísticos
+* Melhorias na autenticação
+* Otimizações de desempenho
+* Novos módulos operacionais
+
+⸻
+
+Projeto Acadêmico e Profissional
+
+Além de atender uma necessidade operacional real, o SISTOLDA representa um projeto completo de desenvolvimento Full Stack, envolvendo análise de requisitos, modelagem de banco de dados, desenvolvimento web, integração entre front-end e back-end, autenticação, controle de acesso, infraestrutura de servidor e implantação em ambiente local.
+
+⸻
+
+Desenvolvedor
+
+Italo Matheus
+
+Tecnólogo em Análise e Desenvolvimento de Sistemas
+
+Desenvolvedor Full Stack
+
+Belém - PA
