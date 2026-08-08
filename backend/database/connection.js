@@ -191,6 +191,12 @@ function seed() {
 
   seedMilitares(db);
   backfillPessoasFromMilitares();
+  // Matriz de autorização de retirada de chaves (idempotente).
+  try {
+    require("../services/autorizacaoChaves").seedAutorizacoes();
+  } catch (e) {
+    console.error("[SISTOLDA] Falha ao aplicar autorizações de chaves:", e.message);
+  }
 
   const userCount = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
   if (userCount === 0) {
