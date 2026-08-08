@@ -57,13 +57,37 @@ exports.autenticarBiometria = (req, res, next) => {
 
       if (acao === "retirada") {
         const r = [];
+        // 1ª passada: valida existência, disponibilidade e AUTORIZAÇÃO de todas as chaves.
+        const alvos = [];
         for (const chave_id of ids) {
           const chave = Chaves.getById(chave_id);
           if (!chave) return res.status(404).json({ error: `Chave ${chave_id} não encontrada.` });
           if (chave.status === "emprestada") return res.status(400).json({ error: `Chave Nº ${chave.numero} já está emprestada.` });
+          const check = verificarAutorizacao(
+            chave,
+            { nip, nome: ident.nomeBase || nomeFmt, posto: ident.posto || null, tipo: ident.tipo },
+            { caboServico: caboOp },
+          );
+          if (!check.autorizado) {
+            const desc = `ACESSO NEGADO — ${nomeFmt} (NIP ${nip}) não possui autorização para a chave Nº ${String(chave.numero).padStart(2, "0")} (${chave.nome}).`;
+            logAuditoria(req, { modulo, acao: "retirada_negada", nip, nome: nomeFmt, descricao: desc });
+            return res.status(403).json({
+              error: "MILITAR NÃO AUTORIZADO",
+              code: "NAO_AUTORIZADO",
+              nip,
+              nome: nomeFmt,
+              chave: { id: chave.id, numero: chave.numero, nome: chave.nome },
+              descricao: `${nomeFmt} não possui autorização para retirar a chave Nº ${String(chave.numero).padStart(2, "0")} — ${chave.nome}.`,
+            });
+          }
+          alvos.push(chave);
+        }
+        // 2ª passada: efetiva as retiradas.
+        for (const chave of alvos) {
           Chaves.retirar({ chave, militar: nomeFmt, nip, cabo: caboOp, pessoa_tipo: ident.tipo });
           r.push(chave);
         }
+
         const nums = r.map((c) => String(c.numero).padStart(2, "0")).join(", ");
         descricao = `${nomeFmt} (NIP ${nip}) retirou ${r.length === 1 ? "a chave" : "as chaves"} ${nums}.`;
         logAuditoria(req, { modulo, acao, nip, nome: nomeFmt, descricao });
