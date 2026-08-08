@@ -3,7 +3,7 @@ import { Key, History, Search, Fingerprint, RotateCcw, Filter, CheckSquare, X } 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiChave, SYNC_OPTIONS } from "@/lib/api";
 import { getCaboOnDuty } from "@/lib/localDb";
-import { showAuthConfirm } from "@/components/AuthConfirm";
+import { showAuthConfirm, showAuthDenied } from "@/components/AuthConfirm";
 import { BiometricCapture } from "@/components/BiometricCapture";
 import { OperationalDateBanner } from "@/components/OperationalDateBanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -76,8 +76,24 @@ const Chaves = () => {
       setSelectedIds([]);
       setMultiMode(false);
     },
-    onError: (e: any) =>
-      toast({ title: "Falha na autenticação", description: e.message, variant: "destructive" }),
+    onError: (e: any) => {
+      // Bloqueio por matriz de autorização — modal vermelho em destaque.
+      if (e?.code === "NAO_AUTORIZADO" || e?.status === 403) {
+        const b = e?.body || {};
+        showAuthDenied({
+          nome: b.nome || "MILITAR NÃO AUTORIZADO",
+          nip: b.nip || "",
+          descricao: b.descricao || "Militar sem autorização para retirar esta chave.",
+          modulo: "chaves",
+        });
+        setDialogType(null);
+        setSelectedChave(null);
+        setSelectedIds([]);
+        setMultiMode(false);
+        return;
+      }
+      toast({ title: "Falha na autenticação", description: e.message, variant: "destructive" });
+    },
   });
 
   const handleNipCaptured = (nip: string) => {

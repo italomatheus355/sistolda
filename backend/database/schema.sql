@@ -182,3 +182,21 @@ CREATE INDEX IF NOT EXISTS idx_pessoas_ident ON pessoas(identificador);
 
 
 
+
+-- Controle de autorização de retirada de chaves
+CREATE TABLE IF NOT EXISTS chave_regras (
+  chave_numero INTEGER PRIMARY KEY,
+  regra TEXT NOT NULL DEFAULT 'nominal'
+);
+
+CREATE TABLE IF NOT EXISTS chave_autorizacoes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  chave_numero INTEGER NOT NULL,
+  nip TEXT,
+  nome_ref TEXT NOT NULL,
+  condicional INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+  UNIQUE (chave_numero, nome_ref, condicional)
+);
+CREATE INDEX IF NOT EXISTS idx_chave_autorizacoes_num ON chave_autorizacoes(chave_numero);
+CREATE INDEX IF NOT EXISTS idx_chave_autorizacoes_nip ON chave_autorizacoes(nip);

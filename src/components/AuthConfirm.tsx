@@ -2,20 +2,29 @@
 // Mostra Nome + NIP + Data/Hora. Fecha automaticamente após alguns segundos.
 
 import { useEffect, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ShieldAlert } from "lucide-react";
 
 export interface AuthConfirmPayload {
   nome: string;
   nip: string;
   descricao?: string;
   modulo?: string;
+  /** "ok" (padrão) = autenticação confirmada; "denied" = acesso negado. */
+  variant?: "ok" | "denied";
+  titulo?: string;
 }
 
 const TARGET = "sistolda:auth-confirm";
 const AUTO_DISMISS_MS = 3500;
+const AUTO_DISMISS_DENIED_MS = 6000;
 
 export function showAuthConfirm(p: AuthConfirmPayload) {
-  window.dispatchEvent(new CustomEvent(TARGET, { detail: p }));
+  window.dispatchEvent(new CustomEvent(TARGET, { detail: { variant: "ok", ...p } }));
+}
+
+/** Modal vermelho de bloqueio (ex.: militar sem autorização para a chave). */
+export function showAuthDenied(p: AuthConfirmPayload) {
+  window.dispatchEvent(new CustomEvent(TARGET, { detail: { ...p, variant: "denied" } }));
 }
 
 export function AuthConfirm() {
@@ -29,7 +38,7 @@ export function AuthConfirm() {
       setItem({ ...detail, ts: new Date().toLocaleString("pt-BR"), id });
       const t = setTimeout(
         () => setItem((cur) => (cur?.id === id ? null : cur)),
-        AUTO_DISMISS_MS,
+        detail.variant === "denied" ? AUTO_DISMISS_DENIED_MS : AUTO_DISMISS_MS,
       );
       return () => clearTimeout(t);
     };
@@ -39,37 +48,58 @@ export function AuthConfirm() {
 
   if (!item) return null;
 
+  const denied = item.variant === "denied";
+
   return (
     <div className="fixed inset-0 z-[210] pointer-events-none flex items-center justify-center p-6">
       <div
         key={item.id}
-        className="pointer-events-none relative flex flex-col items-center text-center px-12 py-10 rounded-2xl border border-status-available/40 bg-card/95 backdrop-blur-md shadow-2xl shadow-status-available/20 animate-in fade-in zoom-in-95 duration-200"
+        className={
+          "pointer-events-none relative flex flex-col items-center text-center px-12 py-10 rounded-2xl border bg-card/95 backdrop-blur-md shadow-2xl animate-in fade-in zoom-in-95 duration-200 " +
+          (denied
+            ? "border-destructive/60 shadow-destructive/30"
+            : "border-status-available/40 shadow-status-available/20")
+        }
         style={{ minWidth: 420, maxWidth: 620 }}
       >
-        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-status-available/15 border border-status-available/40 mb-4">
-          <CheckCircle2 className="w-9 h-9 text-status-available" strokeWidth={2.2} />
+        <div
+          className={
+            "flex items-center justify-center w-16 h-16 rounded-full border mb-4 " +
+            (denied
+              ? "bg-destructive/15 border-destructive/50"
+              : "bg-status-available/15 border-status-available/40")
+          }
+        >
+          {denied ? (
+            <ShieldAlert className="w-9 h-9 text-destructive" strokeWidth={2.2} />
+          ) : (
+            <CheckCircle2 className="w-9 h-9 text-status-available" strokeWidth={2.2} />
+          )}
         </div>
 
-        <p className="text-[11px] font-mono tracking-[0.3em] text-muted-foreground uppercase mb-2">
-          AUTENTICAÇÃO CONFIRMADA
+        <p
+          className={
+            "text-[11px] font-mono tracking-[0.3em] uppercase mb-2 " +
+            (denied ? "text-destructive" : "text-muted-foreground")
+          }
+        >
+          {item.titulo || (denied ? "MILITAR NÃO AUTORIZADO" : "AUTENTICAÇÃO CONFIRMADA")}
         </p>
 
-        <h2 className="text-4xl font-bold text-foreground leading-tight">
+        <h2 className={"text-4xl font-bold leading-tight " + (denied ? "text-destructive" : "text-foreground")}>
           {item.nome}
         </h2>
 
-        <p className="mt-3 text-sm font-mono tracking-wider text-primary">
-          NIP: {item.nip}
-        </p>
+        {item.nip && (
+          <p className={"mt-3 text-sm font-mono tracking-wider " + (denied ? "text-destructive/80" : "text-primary")}>
+            NIP: {item.nip}
+          </p>
+        )}
 
-        <p className="mt-1 text-xs font-mono text-muted-foreground">
-          {item.ts}
-        </p>
+        <p className="mt-1 text-xs font-mono text-muted-foreground">{item.ts}</p>
 
         {item.descricao && (
-          <p className="mt-4 text-sm text-muted-foreground max-w-md">
-            {item.descricao}
-          </p>
+          <p className="mt-4 text-sm text-muted-foreground max-w-md">{item.descricao}</p>
         )}
       </div>
     </div>

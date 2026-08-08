@@ -131,6 +131,7 @@ const MILITARES = [
   ["MN",     "23038748", "HYANDRE"],
   ["MN",     "23042745", "LOPES"],
   ["MN",     "24239020", "ANDRÉ"],
+  ["3ºSG",   "15049574", "JUAN"],
 ];
 
 function seedMilitares(db) {
