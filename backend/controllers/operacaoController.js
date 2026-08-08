@@ -9,6 +9,7 @@ const Visitantes = require("../models/visitantesModel");
 const Materiais = require("../models/materiaisModel");
 const Viaturas = require("../models/viaturasModel");
 const { logAuditoria, listAuditoria } = require("../services/auditService");
+const { verificarAutorizacao } = require("../services/autorizacaoChaves");
 
 function onlyDigits(v) { return String(v || "").replace(/\D/g, ""); }
 
@@ -21,16 +22,16 @@ function resolverIdentidade(nip) {
     if (pessoa.tipo === "marinha") {
       const posto = (pessoa.posto_graduacao || "").trim();
       const nomeBase = posto ? `${posto} ${pessoa.nome}` : pessoa.nome;
-      return { nomeFmt: nomeBase, origem: "pessoas:marinha", tipo: "marinha" };
+      return { nomeFmt: nomeBase, nomeBase: pessoa.nome, posto, origem: "pessoas:marinha", tipo: "marinha" };
     }
     const suffix = pessoa.tipo === "exercito" ? " (EB)" : pessoa.tipo === "civil" ? " (Civil)" : "";
-    return { nomeFmt: `${pessoa.nome}${suffix}`, origem: `pessoas:${pessoa.tipo}`, tipo: pessoa.tipo };
+    return { nomeFmt: `${pessoa.nome}${suffix}`, nomeBase: pessoa.nome, posto: pessoa.posto_graduacao || null, origem: `pessoas:${pessoa.tipo}`, tipo: pessoa.tipo };
   }
   const militar = Militares.getByNip(nip);
   if (militar) {
     const posto = (militar.posto_graduacao || "").trim();
     const nomeBase = posto ? `${posto} ${militar.nome}` : militar.nome;
-    return { nomeFmt: nomeBase, origem: "militares", tipo: "marinha" };
+    return { nomeFmt: nomeBase, nomeBase: militar.nome, posto, origem: "militares", tipo: "marinha" };
   }
   return null;
 }
