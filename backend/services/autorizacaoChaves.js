@@ -222,11 +222,14 @@ function resolverNip(entrada, cadastro) {
     const porPosto = cands.filter((m) => normPosto(m.posto_graduacao) === posto);
     if (porPosto.length) cands = porPosto;
   }
-  if (cands.length === 1) return cands[0].nip;
+  const nipsUnicos = [...new Set(cands.map((m) => String(m.nip || "").replace(/\D/g, "")).filter(Boolean))];
+  if (nipsUnicos.length === 1) return nipsUnicos[0];
   if (cands.length > 1) {
     // Preferência: correspondência exata de nome
-    const exato = cands.filter((m) => norm(m.nome) === norm(nome));
-    if (exato.length === 1) return exato[0].nip;
+    const exato = [...new Set(
+      cands.filter((m) => norm(m.nome) === norm(nome)).map((m) => String(m.nip || "").replace(/\D/g, "")),
+    )].filter(Boolean);
+    if (exato.length === 1) return exato[0];
   }
   return null; // ficará resolvido em tempo de execução pelo nome
 }
