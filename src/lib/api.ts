@@ -376,6 +376,23 @@ export const api = {
 };
 
 
+export interface ApiChaveAutorizacao {
+  id: number;
+  chave_numero: number;
+  nip: string | null;
+  nome_ref: string;
+  condicional: 0 | 1;
+}
+export interface ApiChaveMatriz {
+  numero: number;
+  nome: string;
+  categoria: "secreta" | "geral";
+  departamento: string;
+  regra: string;
+  regra_label: string;
+  autorizados: ApiChaveAutorizacao[];
+}
+
 // ============ Polling padrão para sincronização entre PCs ============
 export const SYNC_OPTIONS = {
   refetchInterval: 3000,
