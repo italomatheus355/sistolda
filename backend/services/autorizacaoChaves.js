@@ -270,8 +270,14 @@ function seedAutorizacoes() {
       for (const nome of cfg.nomes || []) insAut.run(Number(num), resolverNip(nome, cadastro), nome, 0);
       for (const nome of cfg.condicionais || []) insAut.run(Number(num), resolverNip(nome, cadastro), nome, 1);
     }
+    // Comandante e Imediato — autorizados em TODAS as chaves (01 a 49).
+    for (let num = 1; num <= TOTAL_CHAVES; num++) {
+      insRegra.run(num, (MATRIZ[num] && MATRIZ[num].regra) || "nominal");
+      for (const nome of ACESSO_TOTAL) insAut.run(num, resolverNip(nome, cadastro), nome, 0);
+    }
   });
   tx();
+
   const total = db.prepare("SELECT COUNT(*) c FROM chave_autorizacoes").get().c;
   const semNip = db.prepare("SELECT COUNT(*) c FROM chave_autorizacoes WHERE nip IS NULL").get().c;
   console.log(`[SISTOLDA] Autorizações de chaves aplicadas: ${total} (sem NIP resolvido: ${semNip})`);
