@@ -352,12 +352,78 @@ function verificarAutorizacao(chave, pessoa, ctx = {}) {
   return { autorizado: false, motivo: "nao_autorizado", regra };
 }
 
+// ------------------------------------------------- administração da matriz
+const REGRA_LABEL = {
+  nominal: "Somente militares nominalmente autorizados",
+  ostensivo: "Chave ostensiva — liberada a todos",
+  oficiais: "Oficiais + militares nominalmente autorizados",
+  so_sg: "Suboficiais e Sargentos",
+  so_1sg: "Suboficiais e 1ºSG",
+  contramestre: "Contramestre de serviço",
+};
+
+// Lista as 49 chaves com regra, descrição e militares autorizados.
+function listarMatriz() {
+  ensureSchema();
+  const chaves = db.prepare("SELECT numero, nome, categoria, departamento FROM chaves ORDER BY numero").all();
+  const regras = db.prepare("SELECT chave_numero, regra FROM chave_regras").all();
+  const regraMap = new Map(regras.map((r) => [r.chave_numero, r.regra]));
+  const auts = db
+    .prepare("SELECT id, chave_numero, nip, nome_ref, condicional FROM chave_autorizacoes ORDER BY nome_ref")
+    .all();
+  return chaves.map((c) => {
+    const regra = regraMap.get(c.numero) || "sem_regra";
+    return {
+      numero: c.numero,
+      nome: c.nome,
+      categoria: c.categoria,
+      departamento: c.departamento,
+      regra,
+      regra_label: REGRA_LABEL[regra] || "Sem regra cadastrada (liberada)",
+      autorizados: auts.filter((a) => a.chave_numero === c.numero),
+    };
+  });
+}
+
+function adicionarAutorizacao({ chave_numero, nip, nome_ref, condicional }) {
+  ensureSchema();
+  const numero = Number(chave_numero);
+  if (!numero) throw Object.assign(new Error("Chave inválida."), { status: 400 });
+  const nome = String(nome_ref || "").trim();
+  if (!nome) throw Object.assign(new Error("Militar não informado."), { status: 400 });
+  const digits = String(nip || "").replace(/\D/g, "") || null;
+  const cond = condicional ? 1 : 0;
+  db.prepare(`
+    INSERT INTO chave_autorizacoes (chave_numero, nip, nome_ref, condicional)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(chave_numero, nome_ref, condicional)
+      DO UPDATE SET nip = COALESCE(excluded.nip, chave_autorizacoes.nip)
+  `).run(numero, digits, nome, cond);
+  // Garante que a chave passe a ter regra nominal caso não possua nenhuma.
+  db.prepare("INSERT INTO chave_regras (chave_numero, regra) VALUES (?, 'nominal') ON CONFLICT(chave_numero) DO NOTHING")
+    .run(numero);
+  return db.prepare("SELECT id, chave_numero, nip, nome_ref, condicional FROM chave_autorizacoes WHERE chave_numero=? AND nome_ref=? AND condicional=?")
+    .get(numero, nome, cond);
+}
+
+function removerAutorizacao(id) {
+  ensureSchema();
+  const row = db.prepare("SELECT id, chave_numero, nip, nome_ref FROM chave_autorizacoes WHERE id = ?").get(Number(id));
+  if (!row) throw Object.assign(new Error("Autorização não encontrada."), { status: 404 });
+  db.prepare("DELETE FROM chave_autorizacoes WHERE id = ?").run(Number(id));
+  return row;
+}
+
 module.exports = {
   MATRIZ,
   ensureSchema,
   seedAutorizacoes,
   verificarAutorizacao,
   listarAutorizacoes,
+  listarMatriz,
+  adicionarAutorizacao,
+  removerAutorizacao,
   regraDaChave,
+
   _internals: { norm, normPosto, nomesCompativeis, parseEntrada, resolverNip },
 };
