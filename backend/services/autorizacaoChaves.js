@@ -53,7 +53,12 @@ const SUBOFICIAIS_SARGENTOS = ["SO", "1SG", "2SG", "3SG"];
 //        | "so_sg" | "so_1sg" | "contramestre"
 const G = (...nomes) => nomes;
 
+// Comando: autorizados em TODAS as 49 chaves.
+const ACESSO_TOTAL = G("CF Rafael Peixoto", "CC Rodrigo Martins");
+const TOTAL_CHAVES = 49;
+
 const GRUPO_01_02 = G("SO Igor", "2ºSG Pereira", "3ºSG Lelis", "3ºSG Leonardo", "CB Pyter", "3ºSG Juan");
+
 const GRUPO_03_04 = G("CC Torresini", "1ºSG Herbert", "2ºSG Bastos", "2ºSG Renato Andrade", "3ºSG Dias");
 const GRUPO_05_19 = G(
   "CC Bragagnolo", "1ºTen Passeri", "1ºTen Maldonado", "SO Diego", "SO Gleidson", "SO Lucena",
