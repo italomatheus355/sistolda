@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { api, setAuthToken, getAuthToken, setUnauthorizedHandler } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
-export type UserRole = "admin" | "operador" | "consulta" | "informatica";
+export type UserRole = "admin" | "segyorg" | "tolda" | "operador" | "consulta" | "informatica";
 
 interface SessionUser {
   id: number;
