@@ -198,13 +198,24 @@ function seed() {
     console.error("[SISTOLDA] Falha ao aplicar autorizações de chaves:", e.message);
   }
 
-  const userCount = db.prepare("SELECT COUNT(*) AS c FROM users").get().c;
-  if (userCount === 0) {
-    const insert = db.prepare("INSERT INTO users (username,password,role) VALUES (?,?,?)");
-    insert.run("admin",     bcrypt.hashSync("admin", 10),     "admin");
-    insert.run("operador",  bcrypt.hashSync("operador", 10),  "operador");
-    insert.run("consulta",  bcrypt.hashSync("consulta", 10),  "consulta");
-    insert.run("informatica", bcrypt.hashSync("informatica", 10), "informatica");
+  ensureCoreUsers();
+}
+
+// Usuários definitivos do SISTOLDA (idempotente — nunca sobrescreve senhas).
+function ensureCoreUsers() {
+  const CORE = [
+    ["admin",    "admin",         "admin"],
+    ["segyorg",  "segyorg@2026",  "segyorg"],
+    ["segorg",   "segorg@2026",   "segyorg"],
+    ["tolda",    "tolda@2026",    "tolda"],
+  ];
+  const get = db.prepare("SELECT id, role FROM users WHERE username = ?");
+  const ins = db.prepare("INSERT INTO users (username,password,role) VALUES (?,?,?)");
+  const updRole = db.prepare("UPDATE users SET role = ? WHERE id = ?");
+  for (const [username, senha, role] of CORE) {
+    const u = get.get(username);
+    if (!u) ins.run(username, bcrypt.hashSync(senha, 10), role);
+    else if (u.role !== role) updRole.run(role, u.id);
   }
 }
 
