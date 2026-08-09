@@ -26,12 +26,16 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 // Permissões por rota do frontend
+const ADMIN_ROUTES = ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "pessoas", "relatorios", "auditoria", "chaves-autorizacoes"];
 const ROLE_ACCESS: Record<UserRole, string[]> = {
-  admin:       ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "pessoas", "relatorios", "auditoria"],
-  informatica: ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "pessoas", "relatorios", "auditoria"],
+  admin:       ADMIN_ROUTES,
+  segyorg:     ADMIN_ROUTES,
+  informatica: ADMIN_ROUTES,
+  tolda:       ["dashboard", "chaves", "viaturas", "visitantes", "material", "pdv"],
   operador:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
   consulta:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
 };
+
 
 export function canAccess(role: UserRole | undefined, route: string): boolean {
   if (!role) return false;
