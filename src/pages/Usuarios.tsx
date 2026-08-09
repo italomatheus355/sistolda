@@ -14,6 +14,8 @@ import { api } from "@/lib/api";
 
 const roleLabel: Record<string, string> = {
   admin: "Administrador",
+  segyorg: "Seg Yorg — Administrativo",
+  tolda: "Tolda — Operacional",
   operador: "Operador",
   consulta: "Consulta",
   informatica: "Informática",
@@ -25,7 +27,7 @@ const Usuarios = () => {
   const [showForm, setShowForm] = useState(false);
   const [resetting, setResetting] = useState<{ id: number; username: string } | null>(null);
   const [newPass, setNewPass] = useState("");
-  const [form, setForm] = useState({ username: "", password: "", role: "operador" });
+  const [form, setForm] = useState({ username: "", password: "", role: "tolda" });
 
   if (!isAdmin) return <Navigate to="/" replace />;
 
@@ -39,7 +41,7 @@ const Usuarios = () => {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["users-admin"] });
       toast({ title: "Usuário criado", description: `${form.username} cadastrado.` });
-      setForm({ username: "", password: "", role: "operador" });
+      setForm({ username: "", password: "", role: "tolda" });
       setShowForm(false);
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
@@ -172,6 +174,8 @@ const Usuarios = () => {
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrador — acesso total</SelectItem>
+                  <SelectItem value="segyorg">Seg Yorg — administrativo completo</SelectItem>
+                  <SelectItem value="tolda">Tolda — operacional (sem administração)</SelectItem>
                   <SelectItem value="operador">Operador — chaves, viaturas, visitantes, materiais</SelectItem>
                   <SelectItem value="consulta">Consulta — somente leitura</SelectItem>
                   <SelectItem value="informatica">Informática — administração e auditoria</SelectItem>
