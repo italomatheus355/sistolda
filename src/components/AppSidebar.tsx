@@ -1,4 +1,4 @@
-import { Key, Car, Users, Package, Calendar, UserCog, Plane, LogOut, LayoutDashboard, Users2, ShieldAlert, FileText, IdCard } from "lucide-react";
+import { KeyRound, Key, Car, Users, Package, Calendar, UserCog, Plane, LogOut, LayoutDashboard, Users2, ShieldAlert, FileText, IdCard } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -25,6 +25,7 @@ const allModules = [
 ];
 
 const adminModules = [
+  { title: "Gerenciamento de Chaves", url: "/chaves-autorizacoes", icon: KeyRound, route: "chaves-autorizacoes" },
   { title: "Escala",      url: "/escala",     icon: Calendar,    route: "escala" },
   { title: "Pessoas",     url: "/pessoas",    icon: IdCard,      route: "pessoas" },
   { title: "Relatórios",  url: "/relatorios", icon: FileText,    route: "relatorios" },
@@ -82,7 +83,7 @@ export function AppSidebar() {
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {adminModules.map((item) => (
+                {adminModules.filter((m) => can(m.route)).map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
                       <NavLink

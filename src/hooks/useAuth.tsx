@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const isAdmin = user?.role === "admin" || user?.role === "informatica";
+  const isAdmin = user?.role === "admin" || user?.role === "segyorg" || user?.role === "informatica";
   const can = (route: string) => canAccess(user?.role as UserRole | undefined, route);
 
   return (

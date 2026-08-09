@@ -18,6 +18,7 @@ import Dashboard from "./pages/Dashboard";
 
 import Relatorios from "./pages/Relatorios";
 import Auditoria from "./pages/Auditoria";
+import GerenciamentoChaves from "./pages/GerenciamentoChaves";
 import NotFound from "./pages/NotFound";
 import { OperationConfirm } from "@/components/OperationConfirm";
 import { AuthConfirm } from "@/components/AuthConfirm";
@@ -34,8 +35,9 @@ function HomeRedirect() {
   const { user } = useAuth();
   if (!user) return null;
   // Primeira rota acessível para o perfil
-  const order = ["chaves", "viaturas", "visitantes", "material", "pdv", "escala", "usuarios"];
+  const order = ["dashboard", "chaves", "viaturas", "visitantes", "material", "pdv", "escala", "usuarios"];
   const map: Record<string, string> = {
+    dashboard: "/dashboard",
     chaves: "/chaves", viaturas: "/viaturas", visitantes: "/visitantes",
     material: "/material", pdv: "/pdv", escala: "/escala", usuarios: "/usuarios",
   };
@@ -76,6 +78,7 @@ function AppRoutes() {
         
         <Route path="/relatorios" element={<Guard route="relatorios"><Relatorios /></Guard>} />
         <Route path="/auditoria"  element={<Guard route="auditoria"><Auditoria /></Guard>} />
+        <Route path="/chaves-autorizacoes" element={<Guard route="chaves-autorizacoes"><GerenciamentoChaves /></Guard>} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Layout>
