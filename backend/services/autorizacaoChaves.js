@@ -272,9 +272,9 @@ function seedAutorizacoes() {
     }
     // Comandante e Imediato — autorizados em TODAS as chaves (01 a 49).
     for (let num = 1; num <= TOTAL_CHAVES; num++) {
-      insRegra.run(num, (MATRIZ[num] && MATRIZ[num].regra) || "nominal");
       for (const nome of ACESSO_TOTAL) insAut.run(num, resolverNip(nome, cadastro), nome, 0);
     }
+
   });
   tx();
 
