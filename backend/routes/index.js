@@ -16,6 +16,7 @@ const auth        = require("../controllers/authController");
 const users       = require("../controllers/usersController");
 const dashboard   = require("../controllers/dashboardController");
 const pessoas     = require("../controllers/pessoasController");
+const chaveAut    = require("../controllers/chaveAutorizacoesController");
 
 
 const { requireUser, requireRole } = require("../middleware/auth");
@@ -60,6 +61,7 @@ router.post("/viaturas/retorno", requireRole(...RW), viaturas.retorno);
 router.get("/visitantes", requireRole(...ALL), visitantes.list);
 router.post("/visitantes", requireRole(...RW), visitantes.create);
 router.post("/visitantes/:id/saida", requireRole(...RW), visitantes.saida);
+router.post("/visitantes/entrada-manual", requireRole(...RW), visitantes.entradaManual);
 
 // Recorrentes / Civis / Externos
 router.get("/visitantes-recorrentes", requireRole(...ALL), recorrentes.list);
