@@ -55,6 +55,10 @@ export default function Visitantes() {
   const [showEntrada, setShowEntrada] = useState(false);
   const [showCadastro, setShowCadastro] = useState(false);
   const [destino, setDestino] = useState("");
+  const [modoEntrada, setModoEntrada] = useState<"biometria" | "manual">("biometria");
+  const [buscaPessoa, setBuscaPessoa] = useState("");
+  const [pessoaSel, setPessoaSel] = useState<ApiPessoa | null>(null);
+
 
   // === Cadastro de Pessoas ===
   const [pesQuery, setPesQuery] = useState("");
