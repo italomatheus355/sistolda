@@ -94,6 +94,38 @@ export default function Visitantes() {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  // Entrada SEM biometria — reutiliza um cadastro existente (nunca duplica).
+  const entradaManualMutation = useMutation({
+    mutationFn: async () => {
+      if (!destino.trim()) throw new Error("Informe o destino.");
+      if (!pessoaSel) throw new Error("Selecione a pessoa cadastrada.");
+      return api.entradaManualVisitante({
+        pessoa_id: pessoaSel.id,
+        local_destino: destino.trim(),
+        cabo: getCaboOnDuty(),
+      });
+    },
+    onSuccess: (resp) => {
+      qc.invalidateQueries({ queryKey: ["visitantes"] });
+      showAuthConfirm({ nome: resp.nome, nip: resp.nip, descricao: resp.descricao, modulo: "visitantes" });
+      setShowEntrada(false); setDestino(""); setPessoaSel(null); setBuscaPessoa(""); setModoEntrada("biometria");
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const pessoasBusca = useMemo(() => {
+    const q = buscaPessoa.trim().toLowerCase();
+    const digits = q.replace(/\D/g, "");
+    if (!q) return pessoas.slice(0, 10);
+    return pessoas.filter((p) =>
+      p.nome.toLowerCase().includes(q) ||
+      (digits && (p.identificador || "").includes(digits)) ||
+      (digits && (p.cpf || "").includes(digits)),
+    ).slice(0, 10);
+  }, [pessoas, buscaPessoa]);
+
+
+
   const saidaMutation = useMutation({
     mutationFn: (v: ApiVisitante) => api.saidaVisitante(v.id).then(() => v),
     onSuccess: (v) => {
