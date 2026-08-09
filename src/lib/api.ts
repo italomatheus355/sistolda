@@ -353,6 +353,19 @@ export const api = {
     request<{ ok: true; pessoa: ApiPessoa }>(`/pessoas/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   deletePessoa: (id: number) => request<{ ok: true }>(`/pessoas/${id}`, { method: "DELETE" }),
 
+  // ===== Gerenciamento de autorizações das chaves (Administração) =====
+  listChaveAutorizacoes: () => request<ApiChaveMatriz[]>("/chaves-autorizacoes"),
+  addChaveAutorizacao: (body: { chave_numero: number; pessoa_id?: number; nip?: string; nome_ref?: string; condicional?: boolean }) =>
+    request<{ ok: true }>("/chaves-autorizacoes", { method: "POST", body: JSON.stringify(body) }),
+  removeChaveAutorizacao: (id: number) =>
+    request<{ ok: true }>(`/chaves-autorizacoes/${id}`, { method: "DELETE" }),
+
+  // ===== Entrada de visitante SEM biometria =====
+  entradaManualVisitante: (body: { pessoa_id: number; local_destino: string; cabo?: string | null }) =>
+    request<{ ok: true; id: number; nome: string; nip: string; descricao: string }>(
+      "/visitantes/entrada-manual", { method: "POST", body: JSON.stringify(body) }),
+
+
   // ===== Relatórios sob demanda =====
   gerarRelatorioHoje: () =>
     request<{ ok: true; pdfPath: string; xlsxPath: string; dir: string; dateStr: string }>(
@@ -362,6 +375,23 @@ export const api = {
       `/relatorios/gerar/${data}`, { method: "POST" }),
 };
 
+
+export interface ApiChaveAutorizacao {
+  id: number;
+  chave_numero: number;
+  nip: string | null;
+  nome_ref: string;
+  condicional: 0 | 1;
+}
+export interface ApiChaveMatriz {
+  numero: number;
+  nome: string;
+  categoria: "secreta" | "geral";
+  departamento: string;
+  regra: string;
+  regra_label: string;
+  autorizados: ApiChaveAutorizacao[];
+}
 
 // ============ Polling padrão para sincronização entre PCs ============
 export const SYNC_OPTIONS = {

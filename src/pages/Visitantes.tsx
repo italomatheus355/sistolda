@@ -55,6 +55,10 @@ export default function Visitantes() {
   const [showEntrada, setShowEntrada] = useState(false);
   const [showCadastro, setShowCadastro] = useState(false);
   const [destino, setDestino] = useState("");
+  const [modoEntrada, setModoEntrada] = useState<"biometria" | "manual">("biometria");
+  const [buscaPessoa, setBuscaPessoa] = useState("");
+  const [pessoaSel, setPessoaSel] = useState<ApiPessoa | null>(null);
+
 
   // === Cadastro de Pessoas ===
   const [pesQuery, setPesQuery] = useState("");
@@ -89,6 +93,38 @@ export default function Visitantes() {
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
+
+  // Entrada SEM biometria — reutiliza um cadastro existente (nunca duplica).
+  const entradaManualMutation = useMutation({
+    mutationFn: async () => {
+      if (!destino.trim()) throw new Error("Informe o destino.");
+      if (!pessoaSel) throw new Error("Selecione a pessoa cadastrada.");
+      return api.entradaManualVisitante({
+        pessoa_id: pessoaSel.id,
+        local_destino: destino.trim(),
+        cabo: getCaboOnDuty(),
+      });
+    },
+    onSuccess: (resp) => {
+      qc.invalidateQueries({ queryKey: ["visitantes"] });
+      showAuthConfirm({ nome: resp.nome, nip: resp.nip, descricao: resp.descricao, modulo: "visitantes" });
+      setShowEntrada(false); setDestino(""); setPessoaSel(null); setBuscaPessoa(""); setModoEntrada("biometria");
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const pessoasBusca = useMemo(() => {
+    const q = buscaPessoa.trim().toLowerCase();
+    const digits = q.replace(/\D/g, "");
+    if (!q) return pessoas.slice(0, 10);
+    return pessoas.filter((p) =>
+      p.nome.toLowerCase().includes(q) ||
+      (digits && (p.identificador || "").includes(digits)) ||
+      (digits && (p.cpf || "").includes(digits)),
+    ).slice(0, 10);
+  }, [pessoas, buscaPessoa]);
+
+
 
   const saidaMutation = useMutation({
     mutationFn: (v: ApiVisitante) => api.saidaVisitante(v.id).then(() => v),
@@ -238,11 +274,11 @@ export default function Visitantes() {
       </Tabs>
 
       {/* ============ Registrar Entrada ============ */}
-      <Dialog open={showEntrada} onOpenChange={(v) => { setShowEntrada(v); if (!v) setDestino(""); }}>
+      <Dialog open={showEntrada} onOpenChange={(v) => { setShowEntrada(v); if (!v) { setDestino(""); setModoEntrada("biometria"); setPessoaSel(null); setBuscaPessoa(""); } }}>
         <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Users className="w-5 h-5 text-primary" /> Registrar Entrada</DialogTitle>
-            <DialogDescription>Informe o destino e posicione o dedo no leitor biométrico.</DialogDescription>
+            <DialogDescription>Informe o destino e escolha o modo de identificação.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 mt-2">
             <div>
@@ -255,18 +291,74 @@ export default function Visitantes() {
                 autoFocus
               />
             </div>
-            <BiometricCapture
-              onCapture={(nip) => entradaMutation.mutate(nip)}
-              disabled={entradaMutation.isPending || !destino.trim()}
-              label={entradaMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
-              hint={destino.trim()
-                ? "Posicione o dedo no leitor — o NIP será capturado automaticamente."
-                : "Preencha o destino antes de capturar a biometria."}
-              autoRefocus={true}
-            />
+
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant={modoEntrada === "biometria" ? "default" : "outline"}
+                onClick={() => setModoEntrada("biometria")}
+                className="text-xs"
+              >
+                Com biometria
+              </Button>
+              <Button
+                type="button"
+                variant={modoEntrada === "manual" ? "default" : "outline"}
+                onClick={() => setModoEntrada("manual")}
+                className="text-xs"
+              >
+                Sem biometria
+              </Button>
+            </div>
+
+            {modoEntrada === "biometria" ? (
+              <BiometricCapture
+                onCapture={(nip) => entradaMutation.mutate(nip)}
+                disabled={entradaMutation.isPending || !destino.trim()}
+                label={entradaMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
+                hint={destino.trim()
+                  ? "Posicione o dedo no leitor — o NIP será capturado automaticamente."
+                  : "Preencha o destino antes de capturar a biometria."}
+                autoRefocus={true}
+              />
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-xs font-mono text-muted-foreground block">PESSOA (NOME, NIP OU CPF) *</Label>
+                <Input
+                  value={buscaPessoa}
+                  onChange={(e) => { setBuscaPessoa(e.target.value); setPessoaSel(null); }}
+                  placeholder="Buscar pessoa já cadastrada"
+                  className="bg-secondary border-border"
+                />
+                <div className="max-h-48 overflow-y-auto border border-border rounded p-1 space-y-1">
+                  {pessoasBusca.length === 0 && (
+                    <p className="text-xs text-muted-foreground p-2">Nenhuma pessoa encontrada. Cadastre na aba "Cadastro".</p>
+                  )}
+                  {pessoasBusca.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setPessoaSel(p)}
+                      className={`w-full text-left px-2 py-1.5 rounded text-sm ${pessoaSel?.id === p.id ? "bg-primary/20 text-primary" : "hover:bg-secondary"}`}
+                    >
+                      {[p.posto_graduacao, p.nome].filter(Boolean).join(" ")}
+                      <span className="text-muted-foreground font-mono text-xs"> · {p.identificador}</span>
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  className="w-full"
+                  disabled={!pessoaSel || !destino.trim() || entradaManualMutation.isPending}
+                  onClick={() => entradaManualMutation.mutate()}
+                >
+                  {entradaManualMutation.isPending ? "REGISTRANDO..." : "REGISTRAR ENTRADA SEM BIOMETRIA"}
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
+
+
 
       {/* ============ Cadastro de Pessoas ============ */}
       <Dialog open={showCadastro} onOpenChange={(v) => { setShowCadastro(v); if (!v) { setForm(EMPTY_FORM); setEditing(null); } }}>

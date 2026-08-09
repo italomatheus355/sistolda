@@ -2,7 +2,7 @@ const bcrypt = require("bcryptjs");
 const { db } = require("../database/connection");
 const { logAuditoria } = require("../services/auditService");
 
-const ROLES = ["admin", "operador", "consulta", "informatica"];
+const ROLES = ["admin", "segyorg", "tolda", "operador", "consulta", "informatica"];
 
 function publicUser(u) {
   if (!u) return null;

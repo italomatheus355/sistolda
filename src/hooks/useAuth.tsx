@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { api, setAuthToken, getAuthToken, setUnauthorizedHandler } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
-export type UserRole = "admin" | "operador" | "consulta" | "informatica";
+export type UserRole = "admin" | "segyorg" | "tolda" | "operador" | "consulta" | "informatica";
 
 interface SessionUser {
   id: number;
@@ -26,12 +26,16 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 // Permissões por rota do frontend
+const ADMIN_ROUTES = ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "pessoas", "relatorios", "auditoria", "chaves-autorizacoes"];
 const ROLE_ACCESS: Record<UserRole, string[]> = {
-  admin:       ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "pessoas", "relatorios", "auditoria"],
-  informatica: ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "pessoas", "relatorios", "auditoria"],
+  admin:       ADMIN_ROUTES,
+  segyorg:     ADMIN_ROUTES,
+  informatica: ADMIN_ROUTES,
+  tolda:       ["dashboard", "chaves", "viaturas", "visitantes", "material", "pdv"],
   operador:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
   consulta:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
 };
+
 
 export function canAccess(role: UserRole | undefined, route: string): boolean {
   if (!role) return false;
@@ -105,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const isAdmin = user?.role === "admin" || user?.role === "informatica";
+  const isAdmin = user?.role === "admin" || user?.role === "segyorg" || user?.role === "informatica";
   const can = (route: string) => canAccess(user?.role as UserRole | undefined, route);
 
   return (

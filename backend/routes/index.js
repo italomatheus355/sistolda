@@ -16,6 +16,7 @@ const auth        = require("../controllers/authController");
 const users       = require("../controllers/usersController");
 const dashboard   = require("../controllers/dashboardController");
 const pessoas     = require("../controllers/pessoasController");
+const chaveAut    = require("../controllers/chaveAutorizacoesController");
 
 
 const { requireUser, requireRole } = require("../middleware/auth");
@@ -31,15 +32,24 @@ router.post("/auth/refresh", auth.refresh);
 router.post("/auth/logout", auth.logout);
 
 // Perfis disponíveis no sistema
-const RW   = ["admin", "operador", "informatica"];   // operações de escrita
-const ALL  = ["admin", "operador", "consulta", "informatica"]; // leitura
-const ADM  = ["admin", "informatica"];               // administração
+// Definitivos: admin | segyorg (administrativo) | tolda (operacional)
+// Legados mantidos por compatibilidade: operador | consulta | informatica
+const RW   = ["admin", "segyorg", "informatica", "operador", "tolda"];        // operações de escrita
+const ALL  = ["admin", "segyorg", "informatica", "operador", "tolda", "consulta"]; // leitura
+const ADM  = ["admin", "segyorg", "informatica"];    // administração
+
 
 // Chaves
 router.get("/chaves", requireRole(...ALL), chaves.list);
 router.get("/chaves/historico", requireRole(...ALL), chaves.historico);
 router.post("/chaves/retirada", requireRole(...RW), chaves.retirada);
 router.post("/chaves/devolucao", requireRole(...RW), chaves.devolucao);
+
+// Gerenciamento de autorizações das chaves (Administração)
+router.get("/chaves-autorizacoes", requireRole(...ADM), chaveAut.matriz);
+router.post("/chaves-autorizacoes", requireRole(...ADM), chaveAut.adicionar);
+router.delete("/chaves-autorizacoes/:id", requireRole(...ADM), chaveAut.remover);
+
 
 // Viaturas
 router.get("/viaturas", requireRole(...ALL), viaturas.list);
@@ -51,6 +61,7 @@ router.post("/viaturas/retorno", requireRole(...RW), viaturas.retorno);
 router.get("/visitantes", requireRole(...ALL), visitantes.list);
 router.post("/visitantes", requireRole(...RW), visitantes.create);
 router.post("/visitantes/:id/saida", requireRole(...RW), visitantes.saida);
+router.post("/visitantes/entrada-manual", requireRole(...RW), visitantes.entradaManual);
 
 // Recorrentes / Civis / Externos
 router.get("/visitantes-recorrentes", requireRole(...ALL), recorrentes.list);
