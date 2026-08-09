@@ -44,6 +44,12 @@ router.get("/chaves/historico", requireRole(...ALL), chaves.historico);
 router.post("/chaves/retirada", requireRole(...RW), chaves.retirada);
 router.post("/chaves/devolucao", requireRole(...RW), chaves.devolucao);
 
+// Gerenciamento de autorizações das chaves (Administração)
+router.get("/chaves-autorizacoes", requireRole(...ADM), chaveAut.matriz);
+router.post("/chaves-autorizacoes", requireRole(...ADM), chaveAut.adicionar);
+router.delete("/chaves-autorizacoes/:id", requireRole(...ADM), chaveAut.remover);
+
+
 // Viaturas
 router.get("/viaturas", requireRole(...ALL), viaturas.list);
 router.get("/viaturas/historico", requireRole(...ALL), viaturas.historico);
