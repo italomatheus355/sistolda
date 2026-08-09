@@ -31,9 +31,12 @@ router.post("/auth/refresh", auth.refresh);
 router.post("/auth/logout", auth.logout);
 
 // Perfis disponíveis no sistema
-const RW   = ["admin", "operador", "informatica"];   // operações de escrita
-const ALL  = ["admin", "operador", "consulta", "informatica"]; // leitura
-const ADM  = ["admin", "informatica"];               // administração
+// Definitivos: admin | segyorg (administrativo) | tolda (operacional)
+// Legados mantidos por compatibilidade: operador | consulta | informatica
+const RW   = ["admin", "segyorg", "informatica", "operador", "tolda"];        // operações de escrita
+const ALL  = ["admin", "segyorg", "informatica", "operador", "tolda", "consulta"]; // leitura
+const ADM  = ["admin", "segyorg", "informatica"];    // administração
+
 
 // Chaves
 router.get("/chaves", requireRole(...ALL), chaves.list);
