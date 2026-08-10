@@ -179,7 +179,7 @@ function migrateUsers() {
         SELECT id, username, password,
           CASE
             WHEN role = 'admin' THEN 'admin'
-            WHEN role IN ('seg_org', 'segorg', 'segyorg', 'informatica') THEN 'seg_org'
+            WHEN role = 'seg_org' THEN 'seg_org'
             ELSE 'tolda'
           END,
           created_at, COALESCE(bloqueado, 0), ultimo_acesso
