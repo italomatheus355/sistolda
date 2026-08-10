@@ -150,6 +150,9 @@ function migrateLogsAuditoria() {
 }
 
 function migrateUsers() {
+  addColumnIfMissing("users", "bloqueado",   "ALTER TABLE users ADD COLUMN bloqueado INTEGER NOT NULL DEFAULT 0");
+  addColumnIfMissing("users", "ultimo_acesso","ALTER TABLE users ADD COLUMN ultimo_acesso TEXT");
+
   const usersSql = db.prepare(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
   ).get()?.sql || "";
@@ -187,9 +190,6 @@ function migrateUsers() {
     })();
     console.log("[SISTOLDA] Perfis de usuários migrados com preservação dos dados.");
   }
-
-  addColumnIfMissing("users", "bloqueado",   "ALTER TABLE users ADD COLUMN bloqueado INTEGER NOT NULL DEFAULT 0");
-  addColumnIfMissing("users", "ultimo_acesso","ALTER TABLE users ADD COLUMN ultimo_acesso TEXT");
 
   // Hash de senhas em texto puro (legado)
   const users = db.prepare("SELECT id, password FROM users").all();
@@ -242,11 +242,11 @@ function ensureCoreUsers() {
   ];
   const get = db.prepare("SELECT id FROM users WHERE username = ?");
   const ins = db.prepare("INSERT INTO users (username,password,role) VALUES (?,?,?)");
-  const upd = db.prepare("UPDATE users SET password = ?, role = ?, bloqueado = 0 WHERE id = ?");
+  const updPassword = db.prepare("UPDATE users SET password = ? WHERE id = ?");
   for (const [username, senha, role] of CORE) {
     const u = get.get(username);
     if (!u) ins.run(username, bcrypt.hashSync(senha, 10), role);
-    else upd.run(bcrypt.hashSync(senha, 10), role, u.id);
+    else updPassword.run(bcrypt.hashSync(senha, 10), u.id);
   }
 }
 
