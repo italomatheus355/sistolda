@@ -31,12 +31,10 @@ router.get("/auth/me", auth.me);
 router.post("/auth/refresh", auth.refresh);
 router.post("/auth/logout", auth.logout);
 
-// Perfis disponíveis no sistema
-// Definitivos: admin | segyorg (administrativo) | tolda (operacional)
-// Legados mantidos por compatibilidade: operador | consulta | informatica
-const RW   = ["admin", "segyorg", "informatica", "operador", "tolda"];        // operações de escrita
-const ALL  = ["admin", "segyorg", "informatica", "operador", "tolda", "consulta"]; // leitura
-const ADM  = ["admin", "segyorg", "informatica"];    // administração
+// Perfis definitivos: admin | seg_org (administrativos) | tolda (operacional)
+const RW  = ["admin", "seg_org", "tolda"];
+const ALL = ["admin", "seg_org", "tolda"];
+const ADM = ["admin", "seg_org"];
 
 
 // Chaves

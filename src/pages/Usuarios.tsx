@@ -14,11 +14,8 @@ import { api } from "@/lib/api";
 
 const roleLabel: Record<string, string> = {
   admin: "Administrador",
-  segyorg: "Seg Yorg — Administrativo",
+  seg_org: "Seg Org — Administrativo",
   tolda: "Tolda — Operacional",
-  operador: "Operador",
-  consulta: "Consulta",
-  informatica: "Informática",
 };
 
 const Usuarios = () => {
@@ -174,11 +171,8 @@ const Usuarios = () => {
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrador — acesso total</SelectItem>
-                  <SelectItem value="segyorg">Seg Yorg — administrativo completo</SelectItem>
+                  <SelectItem value="seg_org">Seg Org — administrativo completo</SelectItem>
                   <SelectItem value="tolda">Tolda — operacional (sem administração)</SelectItem>
-                  <SelectItem value="operador">Operador — chaves, viaturas, visitantes, materiais</SelectItem>
-                  <SelectItem value="consulta">Consulta — somente leitura</SelectItem>
-                  <SelectItem value="informatica">Informática — administração e auditoria</SelectItem>
                 </SelectContent>
               </Select>
             </div>

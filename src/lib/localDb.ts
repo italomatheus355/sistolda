@@ -23,7 +23,7 @@ export function uid(): string {
 }
 
 // ============ Tipos ============
-export type UserRole = "admin" | "operacoes" | "segorg" | "servico";
+export type UserRole = "admin" | "seg_org" | "tolda";
 export type CategoriaChave = "secreta" | "geral";
 export type Departamento = "administracao" | "manutencao" | "operacoes" | "seguranca";
 
@@ -251,10 +251,9 @@ function seedViaturas(): Viatura[] {
 function seedUsers(): UserAccount[] {
   const now = new Date().toISOString();
   return [
-    { id: "u-admin",     username: "admin",     password: "admin",     role: "admin",     created_at: now },
-    { id: "u-operacoes", username: "operacoes", password: "operacoes", role: "operacoes", created_at: now },
-    { id: "u-segorg",    username: "segorg",    password: "segorg",    role: "segorg",    created_at: now },
-    { id: "u-servico",   username: "servico",   password: "servico",   role: "servico",   created_at: now },
+    { id: "u-admin",   username: "admin",   password: "admin",        role: "admin",   created_at: now },
+    { id: "u-seg-org", username: "seg_org", password: "seg_org@2026", role: "seg_org", created_at: now },
+    { id: "u-tolda",   username: "tolda",   password: "tolda@2026",   role: "tolda",   created_at: now },
   ];
 }
 
@@ -381,10 +380,9 @@ export function subscribeChanges(cb: (key: string) => void): () => void {
 
 // ============ Permissões por perfil ============
 export const ROLE_ACCESS: Record<UserRole, string[]> = {
-  admin:     ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "biometria"],
-  operacoes: ["pdv", "dashboard"],
-  segorg:    ["chaves", "dashboard"],
-  servico:   ["chaves", "viaturas", "visitantes", "material", "dashboard"],
+  admin:   ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "biometria"],
+  seg_org: ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "biometria"],
+  tolda:   ["dashboard", "chaves", "viaturas", "visitantes", "material", "pdv"],
 };
 
 export function canAccess(role: UserRole | undefined, route: string): boolean {
