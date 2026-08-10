@@ -150,14 +150,46 @@ function migrateLogsAuditoria() {
 }
 
 function migrateUsers() {
+  const usersSql = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
+  ).get()?.sql || "";
+
+  // SQLite não permite alterar um CHECK diretamente. Reconstrói somente a
+  // tabela users, em transação, preservando IDs, senhas e datas existentes.
+  // A verificação do schema torna esta migração idempotente nos próximos boots.
+  const hasDefinitiveRoles = /role\s+IN\s*\(\s*'admin'\s*,\s*'seg_org'\s*,\s*'tolda'\s*\)/i.test(usersSql);
+  if (!hasDefinitiveRoles) {
+    db.transaction(() => {
+      db.exec(`
+        CREATE TABLE users_migrated (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          username TEXT UNIQUE NOT NULL,
+          password TEXT NOT NULL,
+          role TEXT NOT NULL CHECK (role IN ('admin','seg_org','tolda')),
+          created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+          bloqueado INTEGER NOT NULL DEFAULT 0,
+          ultimo_acesso TEXT
+        );
+      `);
+      db.exec(`
+        INSERT INTO users_migrated (id, username, password, role, created_at, bloqueado, ultimo_acesso)
+        SELECT id, username, password,
+          CASE
+            WHEN role = 'admin' THEN 'admin'
+            WHEN role IN ('seg_org', 'segorg', 'segyorg', 'informatica') THEN 'seg_org'
+            ELSE 'tolda'
+          END,
+          created_at, COALESCE(bloqueado, 0), ultimo_acesso
+        FROM users;
+        DROP TABLE users;
+        ALTER TABLE users_migrated RENAME TO users;
+      `);
+    })();
+    console.log("[SISTOLDA] Perfis de usuários migrados com preservação dos dados.");
+  }
+
   addColumnIfMissing("users", "bloqueado",   "ALTER TABLE users ADD COLUMN bloqueado INTEGER NOT NULL DEFAULT 0");
   addColumnIfMissing("users", "ultimo_acesso","ALTER TABLE users ADD COLUMN ultimo_acesso TEXT");
-
-  // Migrar roles antigas para o novo conjunto: admin | operador | consulta | informatica
-  const map = { operacoes: "operador", segorg: "operador", servico: "consulta" };
-  for (const [oldR, newR] of Object.entries(map)) {
-    db.prepare("UPDATE users SET role=? WHERE role=?").run(newR, oldR);
-  }
 
   // Hash de senhas em texto puro (legado)
   const users = db.prepare("SELECT id, password FROM users").all();
@@ -204,18 +236,17 @@ function seed() {
 // Usuários definitivos do SISTOLDA (idempotente — nunca sobrescreve senhas).
 function ensureCoreUsers() {
   const CORE = [
-    ["admin",    "admin",         "admin"],
-    ["segyorg",  "segyorg@2026",  "segyorg"],
-    ["segorg",   "segorg@2026",   "segyorg"],
-    ["tolda",    "tolda@2026",    "tolda"],
+    ["admin",   "admin",        "admin"],
+    ["seg_org", "seg_org@2026", "seg_org"],
+    ["tolda",   "tolda@2026",   "tolda"],
   ];
-  const get = db.prepare("SELECT id, role FROM users WHERE username = ?");
+  const get = db.prepare("SELECT id FROM users WHERE username = ?");
   const ins = db.prepare("INSERT INTO users (username,password,role) VALUES (?,?,?)");
-  const updRole = db.prepare("UPDATE users SET role = ? WHERE id = ?");
+  const upd = db.prepare("UPDATE users SET password = ?, role = ?, bloqueado = 0 WHERE id = ?");
   for (const [username, senha, role] of CORE) {
     const u = get.get(username);
     if (!u) ins.run(username, bcrypt.hashSync(senha, 10), role);
-    else if (u.role !== role) updRole.run(role, u.id);
+    else upd.run(bcrypt.hashSync(senha, 10), role, u.id);
   }
 }
 

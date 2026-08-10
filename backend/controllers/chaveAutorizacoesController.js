@@ -1,5 +1,5 @@
 // SISTOLDA — Administração da matriz de autorização das chaves.
-// Acesso restrito a admin / segyorg (aplicado nas rotas).
+// Acesso restrito a admin / seg_org (aplicado nas rotas).
 const Aut = require("../services/autorizacaoChaves");
 const Pessoas = require("../models/pessoasModel");
 const Militares = require("../models/militaresModel");

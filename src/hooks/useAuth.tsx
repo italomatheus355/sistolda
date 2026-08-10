@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, useCallback, useRef } f
 import { api, setAuthToken, getAuthToken, setUnauthorizedHandler } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
-export type UserRole = "admin" | "segyorg" | "tolda" | "operador" | "consulta" | "informatica";
+export type UserRole = "admin" | "seg_org" | "tolda";
 
 interface SessionUser {
   id: number;
@@ -29,11 +29,8 @@ const AuthContext = createContext<AuthContextType>({
 const ADMIN_ROUTES = ["chaves", "viaturas", "visitantes", "material", "pdv", "dashboard", "escala", "usuarios", "pessoas", "relatorios", "auditoria", "chaves-autorizacoes"];
 const ROLE_ACCESS: Record<UserRole, string[]> = {
   admin:       ADMIN_ROUTES,
-  segyorg:     ADMIN_ROUTES,
-  informatica: ADMIN_ROUTES,
+  seg_org:     ADMIN_ROUTES,
   tolda:       ["dashboard", "chaves", "viaturas", "visitantes", "material", "pdv"],
-  operador:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
-  consulta:    ["chaves", "viaturas", "visitantes", "material", "dashboard"],
 };
 
 
@@ -109,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const isAdmin = user?.role === "admin" || user?.role === "segyorg" || user?.role === "informatica";
+  const isAdmin = user?.role === "admin" || user?.role === "seg_org";
   const can = (route: string) => canAccess(user?.role as UserRole | undefined, route);
 
   return (

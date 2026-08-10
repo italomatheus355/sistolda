@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   username TEXT UNIQUE NOT NULL,
   password TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('admin','operacoes','segorg','servico')),
+  role TEXT NOT NULL CHECK (role IN ('admin','seg_org','tolda')),
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
