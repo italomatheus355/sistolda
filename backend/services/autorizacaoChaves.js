@@ -406,6 +406,47 @@ function adicionarAutorizacao({ chave_numero, nip, nome_ref, condicional }) {
     .get(numero, nome, cond);
 }
 
+// Edita a configuração da própria chave (número, nome/local e categoria),
+// preservando integralmente as autorizações já cadastradas.
+function atualizarChave(numeroAtual, { numero, nome, categoria }) {
+  ensureSchema();
+  const atual = Number(numeroAtual);
+  const chave = db.prepare("SELECT * FROM chaves WHERE numero = ?").get(atual);
+  if (!chave) throw Object.assign(new Error("Chave não encontrada."), { status: 404 });
+
+  const novoNumero = Number(numero);
+  if (!Number.isInteger(novoNumero) || novoNumero <= 0) {
+    throw Object.assign(new Error("Número da chave inválido."), { status: 400 });
+  }
+  const novoNome = String(nome || "").trim();
+  if (!novoNome) throw Object.assign(new Error("Informe o nome/local da chave."), { status: 400 });
+  const cat = String(categoria || "").trim().toLowerCase();
+  if (!["secreta", "geral"].includes(cat)) {
+    throw Object.assign(new Error("Categoria inválida (use SECRETA ou GERAL)."), { status: 400 });
+  }
+  if (novoNumero !== atual) {
+    const dup = db.prepare("SELECT id FROM chaves WHERE numero = ?").get(novoNumero);
+    if (dup) throw Object.assign(new Error(`Já existe a chave Nº ${novoNumero}.`), { status: 409 });
+  }
+
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE chaves SET numero = ?, nome = ?, categoria = ? WHERE id = ?")
+      .run(novoNumero, novoNome, cat, chave.id);
+    if (novoNumero !== atual) {
+      // Move as autorizações e a regra junto com a chave (nada é perdido).
+      db.prepare("UPDATE chave_autorizacoes SET chave_numero = ? WHERE chave_numero = ?").run(novoNumero, atual);
+      db.prepare("DELETE FROM chave_regras WHERE chave_numero = ?").run(novoNumero);
+      db.prepare("UPDATE chave_regras SET chave_numero = ? WHERE chave_numero = ?").run(novoNumero, atual);
+    }
+  });
+  tx();
+
+  return {
+    antes: { numero: chave.numero, nome: chave.nome, categoria: chave.categoria },
+    depois: { numero: novoNumero, nome: novoNome, categoria: cat },
+  };
+}
+
 function removerAutorizacao(id) {
   ensureSchema();
   const row = db.prepare("SELECT id, chave_numero, nip, nome_ref FROM chave_autorizacoes WHERE id = ?").get(Number(id));
@@ -422,6 +463,7 @@ module.exports = {
   listarAutorizacoes,
   listarMatriz,
   adicionarAutorizacao,
+  atualizarChave,
   removerAutorizacao,
   regraDaChave,
 
