@@ -56,6 +56,8 @@ export default function Visitantes() {
   const [showCadastro, setShowCadastro] = useState(false);
   const [destino, setDestino] = useState("");
   const [modoEntrada, setModoEntrada] = useState<"biometria" | "manual">("biometria");
+  // Pausa a leitura biométrica para permitir corrigir o campo DESTINO sem fechar o modal.
+  const [capturaPausada, setCapturaPausada] = useState(false);
   const [buscaPessoa, setBuscaPessoa] = useState("");
   const [pessoaSel, setPessoaSel] = useState<ApiPessoa | null>(null);
 
@@ -89,7 +91,7 @@ export default function Visitantes() {
     onSuccess: (resp) => {
       qc.invalidateQueries({ queryKey: ["visitantes"] });
       showAuthConfirm({ nome: resp.nome, nip: resp.nip, descricao: resp.descricao, modulo: "visitantes" });
-      setShowEntrada(false); setDestino("");
+      setShowEntrada(false); setDestino(""); setCapturaPausada(false);
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -108,7 +110,7 @@ export default function Visitantes() {
     onSuccess: (resp) => {
       qc.invalidateQueries({ queryKey: ["visitantes"] });
       showAuthConfirm({ nome: resp.nome, nip: resp.nip, descricao: resp.descricao, modulo: "visitantes" });
-      setShowEntrada(false); setDestino(""); setPessoaSel(null); setBuscaPessoa(""); setModoEntrada("biometria");
+      setShowEntrada(false); setDestino(""); setPessoaSel(null); setBuscaPessoa(""); setModoEntrada("biometria"); setCapturaPausada(false);
     },
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -238,7 +240,7 @@ export default function Visitantes() {
           <Button variant="outline" onClick={() => { setForm(EMPTY_FORM); setEditing(null); setShowCadastro(true); }} className="gap-2">
             <UserPlus className="w-4 h-4" /> Cadastro de Pessoas
           </Button>
-          <Button onClick={() => { setDestino(""); setShowEntrada(true); }} className="gap-2">
+          <Button onClick={() => { setDestino(""); setCapturaPausada(false); setShowEntrada(true); }} className="gap-2">
             <Plus className="w-4 h-4" /> Registrar Entrada
           </Button>
         </div>
@@ -274,7 +276,7 @@ export default function Visitantes() {
       </Tabs>
 
       {/* ============ Registrar Entrada ============ */}
-      <Dialog open={showEntrada} onOpenChange={(v) => { setShowEntrada(v); if (!v) { setDestino(""); setModoEntrada("biometria"); setPessoaSel(null); setBuscaPessoa(""); } }}>
+      <Dialog open={showEntrada} onOpenChange={(v) => { setShowEntrada(v); if (!v) { setDestino(""); setModoEntrada("biometria"); setPessoaSel(null); setBuscaPessoa(""); setCapturaPausada(false); } }}>
         <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Users className="w-5 h-5 text-primary" /> Registrar Entrada</DialogTitle>
@@ -286,6 +288,8 @@ export default function Visitantes() {
               <Input
                 value={destino}
                 onChange={(e) => setDestino(e.target.value)}
+                onFocus={() => setCapturaPausada(true)}
+                onMouseDown={() => setCapturaPausada(true)}
                 placeholder="Local de destino dentro do quartel"
                 className="bg-secondary border-border"
                 autoFocus
@@ -312,15 +316,48 @@ export default function Visitantes() {
             </div>
 
             {modoEntrada === "biometria" ? (
-              <BiometricCapture
-                onCapture={(nip) => entradaMutation.mutate(nip)}
-                disabled={entradaMutation.isPending || !destino.trim()}
-                label={entradaMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
-                hint={destino.trim()
-                  ? "Posicione o dedo no leitor — o NIP será capturado automaticamente."
-                  : "Preencha o destino antes de capturar a biometria."}
-                autoRefocus={true}
-              />
+              <div className="space-y-2">
+                <BiometricCapture
+                  onCapture={(nip) => entradaMutation.mutate(nip)}
+                  disabled={entradaMutation.isPending || !destino.trim()}
+                  paused={capturaPausada}
+                  label={
+                    entradaMutation.isPending
+                      ? "PROCESSANDO..."
+                      : capturaPausada
+                        ? "LEITURA PAUSADA"
+                        : "AGUARDANDO BIOMETRIA"
+                  }
+                  hint={
+                    !destino.trim()
+                      ? "Preencha o destino antes de capturar a biometria."
+                      : capturaPausada
+                        ? "Corrija o destino e clique em Retomar leitura para capturar a biometria."
+                        : "Posicione o dedo no leitor — o NIP será capturado automaticamente."
+                  }
+                  autoRefocus={true}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-xs"
+                    disabled={capturaPausada}
+                    onClick={() => setCapturaPausada(true)}
+                  >
+                    Corrigir destino
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="text-xs"
+                    disabled={!capturaPausada || !destino.trim()}
+                    onClick={() => setCapturaPausada(false)}
+                  >
+                    Retomar leitura
+                  </Button>
+                </div>
+              </div>
             ) : (
               <div className="space-y-2">
                 <Label className="text-xs font-mono text-muted-foreground block">PESSOA (NOME, NIP OU CPF) *</Label>

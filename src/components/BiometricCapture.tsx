@@ -18,6 +18,16 @@ interface Props {
   className?: string;
   /** Quando true (padrão), o componente reconquista o foco se o usuário clicar fora. */
   autoRefocus?: boolean;
+  /** Quando true, a leitura fica pausada e o componente NUNCA rouba o foco. */
+  paused?: boolean;
+}
+
+// Elementos onde o operador pode estar digitando — nunca roubar o foco deles.
+function isEditable(el: Element | null): boolean {
+  const n = el as HTMLElement | null;
+  if (!n) return false;
+  const tag = n.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!n.isContentEditable;
 }
 
 export function BiometricCapture({
@@ -27,30 +37,26 @@ export function BiometricCapture({
   hint = "Posicione o dedo no leitor — o NIP será capturado automaticamente.",
   className,
   autoRefocus = true,
+  paused = false,
 }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [value, setValue] = useState("");
   const [pulse, setPulse] = useState(false);
 
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+  const active = autoRefocus && !disabled && !paused;
 
   useEffect(() => {
-    if (!autoRefocus || disabled) return;
-    const refocus = (e: Event) => {
-      // Se o clique/foco foi em um input ou textarea, não rouba o foco.
-      const target = e.target as HTMLElement;
-      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
-        return;
-      }
+    if (active) inputRef.current?.focus();
+  }, [active]);
 
-      // pequeno delay para não brigar com cliques em botões/diálogos
+  useEffect(() => {
+    if (!active) return;
+    const refocus = () => {
+      // Só recupera o foco quando ninguém está digitando em outro campo.
       setTimeout(() => {
-        if (document.activeElement !== inputRef.current && !document.activeElement?.closest('input, textarea')) {
-          inputRef.current?.focus();
-        }
-      }, 50);
+        if (isEditable(document.activeElement)) return;
+        if (document.activeElement !== inputRef.current) inputRef.current?.focus();
+      }, 60);
     };
     window.addEventListener("click", refocus);
     window.addEventListener("focusin", refocus);
@@ -58,7 +64,7 @@ export function BiometricCapture({
       window.removeEventListener("click", refocus);
       window.removeEventListener("focusin", refocus);
     };
-  }, [autoRefocus, disabled]);
+  }, [active]);
 
   const submit = (raw: string) => {
     const nip = raw.replace(/\D/g, "").trim();
@@ -68,7 +74,7 @@ export function BiometricCapture({
     setTimeout(() => setPulse(false), 400);
     onCapture(nip);
     // foca novamente para próxima leitura
-    setTimeout(() => inputRef.current?.focus(), 0);
+    setTimeout(() => { if (active) inputRef.current?.focus(); }, 0);
   };
 
   return (
@@ -79,7 +85,7 @@ export function BiometricCapture({
         disabled && "opacity-50",
         className,
       )}
-      onClick={() => inputRef.current?.focus()}
+      onClick={() => { if (active) inputRef.current?.focus(); }}
     >
       <Fingerprint
         className={cn(
@@ -102,15 +108,20 @@ export function BiometricCapture({
         spellCheck={false}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => {
+          if (e.key === "Escape") { (e.target as HTMLInputElement).blur(); return; }
           if (e.key === "Enter") {
             e.preventDefault();
             submit(value);
           }
         }}
-        onBlur={() => {
-          if (autoRefocus && !disabled) {
-            setTimeout(() => inputRef.current?.focus(), 50);
-          }
+        onBlur={(e) => {
+          // Não recupera o foco se o operador foi para outro campo editável.
+          if (isEditable(e.relatedTarget as Element | null)) return;
+          if (!active) return;
+          setTimeout(() => {
+            if (isEditable(document.activeElement)) return;
+            inputRef.current?.focus();
+          }, 60);
         }}
         aria-label="Captura biométrica por NIP"
         className="sr-only"
