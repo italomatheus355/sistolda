@@ -35,6 +35,20 @@ exports.adicionar = (req, res, next) => {
   } catch (e) { next(e); }
 };
 
+// Edição da própria chave (número, nome/local, categoria) — restrito a admin/seg_org.
+exports.atualizarChave = (req, res, next) => {
+  try {
+    const { numero, nome, categoria } = req.body || {};
+    const r = Aut.atualizarChave(req.params.numero, { numero, nome, categoria });
+    const fmt = (c) => `Nº ${String(c.numero).padStart(2, "0")} — ${c.nome} (${String(c.categoria).toUpperCase()})`;
+    logAuditoria(req, {
+      modulo: "chaves", acao: "chave_editada",
+      descricao: `Configuração de chave alterada: ${fmt(r.antes)} → ${fmt(r.depois)}.`,
+    });
+    res.json({ ok: true, ...r });
+  } catch (e) { next(e); }
+};
+
 exports.remover = (req, res, next) => {
   try {
     const row = Aut.removerAutorizacao(req.params.id);

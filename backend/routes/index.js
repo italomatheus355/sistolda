@@ -17,6 +17,7 @@ const users       = require("../controllers/usersController");
 const dashboard   = require("../controllers/dashboardController");
 const pessoas     = require("../controllers/pessoasController");
 const chaveAut    = require("../controllers/chaveAutorizacoesController");
+const backups     = require("../controllers/backupsController");
 
 
 const { requireUser, requireRole } = require("../middleware/auth");
@@ -47,6 +48,7 @@ router.post("/chaves/devolucao", requireRole(...RW), chaves.devolucao);
 router.get("/chaves-autorizacoes", requireRole(...ADM), chaveAut.matriz);
 router.post("/chaves-autorizacoes", requireRole(...ADM), chaveAut.adicionar);
 router.delete("/chaves-autorizacoes/:id", requireRole(...ADM), chaveAut.remover);
+router.put("/chaves-config/:numero", requireRole(...ADM), chaveAut.atualizarChave);
 
 
 // Viaturas
@@ -107,6 +109,10 @@ router.delete("/biometrias/:id", requireRole(...ADM), biometrias.remove);
 // Relatórios
 router.post("/relatorios/gerar", requireRole(...ADM), relatorios.gerarHoje);
 router.post("/relatorios/gerar/:data", requireRole(...ADM), relatorios.gerarData);
+
+// Backups já produzidos — somente leitura (listar / visualizar / baixar)
+router.get("/backups", requireRole(...ADM), backups.list);
+router.get("/backups/arquivo", requireRole(...ADM), backups.download);
 
 // Operação unificada — biometria por NIP
 router.post("/operacao/autenticar-biometria", requireRole(...RW), operacao.autenticarBiometria);
