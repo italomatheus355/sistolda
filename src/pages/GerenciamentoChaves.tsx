@@ -156,10 +156,21 @@ export default function GerenciamentoChaves() {
                 <p className="text-2xl font-bold leading-none">{String(c.numero).padStart(2, "0")}</p>
                 <p className="text-sm font-medium mt-1">{c.nome}</p>
               </div>
-              <Badge variant={c.categoria === "secreta" ? "destructive" : "secondary"} className="uppercase text-[10px]">
-                {c.categoria}
-              </Badge>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Badge variant={c.categoria === "secreta" ? "destructive" : "secondary"} className="uppercase text-[10px]">
+                  {c.categoria}
+                </Badge>
+                <button
+                  onClick={() => abrirEdicao(c)}
+                  className="text-muted-foreground hover:text-primary p-1 rounded"
+                  aria-label={`Editar chave ${c.numero}`}
+                  title="Editar chave"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
+
 
             <p className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
               <ShieldCheck className="w-3 h-3" /> {c.regra_label}
