@@ -1,7 +1,7 @@
 // SISTOLDA — Administração > Gerenciamento de Chaves.
 // Permite administrar, de forma persistente, quem pode retirar cada chave.
 import { useMemo, useState } from "react";
-import { KeyRound, Plus, Trash2, Search, ShieldCheck } from "lucide-react";
+import { KeyRound, Plus, Trash2, Search, ShieldCheck, Pencil } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiChaveMatriz, ApiChaveAutorizacao, ApiPessoa, SYNC_OPTIONS } from "@/lib/api";
 import { OperationalDateBanner } from "@/components/OperationalDateBanner";
@@ -10,12 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+
+// Normaliza texto para busca: minúsculas, sem acentos e sem pontuação supérflua.
+const norm = (s: string) =>
+  (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const digits = (s: string) => (s || "").replace(/\D/g, "");
 
 export default function GerenciamentoChaves() {
   const qc = useQueryClient();
@@ -24,6 +30,11 @@ export default function GerenciamentoChaves() {
   const [pessoaQuery, setPessoaQuery] = useState("");
   const [pessoaSel, setPessoaSel] = useState<ApiPessoa | null>(null);
   const [confirmDel, setConfirmDel] = useState<{ aut: ApiChaveAutorizacao; chave: ApiChaveMatriz } | null>(null);
+  const [editFor, setEditFor] = useState<ApiChaveMatriz | null>(null);
+  const [editForm, setEditForm] = useState<{ numero: string; nome: string; categoria: "secreta" | "geral" }>({
+    numero: "", nome: "", categoria: "geral",
+  });
+
 
   const { data: matriz = [], isLoading } = useQuery({
     queryKey: ["chaves-autorizacoes"], queryFn: api.listChaveAutorizacoes, ...SYNC_OPTIONS,
@@ -50,25 +61,68 @@ export default function GerenciamentoChaves() {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const editar = useMutation({
+    mutationFn: () =>
+      api.updateChaveConfig(editFor!.numero, {
+        numero: Number(editForm.numero),
+        nome: editForm.nome.trim(),
+        categoria: editForm.categoria,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chaves-autorizacoes"] });
+      qc.invalidateQueries({ queryKey: ["chaves"] });
+      toast({ title: "Chave atualizada", description: "As autorizações foram preservadas." });
+      setEditFor(null);
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const filtradas = useMemo(() => {
-    const q = busca.trim().toLowerCase();
+    const q = norm(busca);
     if (!q) return matriz;
-    return matriz.filter((c) =>
-      String(c.numero).padStart(2, "0").includes(q) ||
-      c.nome.toLowerCase().includes(q) ||
-      c.autorizados.some((a) => a.nome_ref.toLowerCase().includes(q)),
-    );
-  }, [matriz, busca]);
+    const qd = digits(busca);
+
+    // Pessoas que casam com a busca (nome, NIP ou CPF) — usadas para localizar
+    // as chaves em que esse militar possui autorização.
+    const pessoasAlvo = pessoas.filter((p) => {
+      const nomeOk = norm(`${p.posto_graduacao || ""} ${p.nome}`).includes(q);
+      const idOk = !!qd && (digits(p.identificador || "").includes(qd) || digits(p.cpf || "").includes(qd));
+      return nomeOk || idOk;
+    });
+    const nipsAlvo = new Set(pessoasAlvo.map((p) => digits(p.identificador || "")).filter(Boolean));
+    const nomesAlvo = pessoasAlvo.map((p) => norm(p.nome)).filter(Boolean);
+
+    return matriz.filter((c) => {
+      if (String(c.numero).padStart(2, "0").includes(q) || String(c.numero) === q) return true;
+      if (norm(c.nome).includes(q)) return true;
+      if (norm(c.regra_label || "").includes(q)) return true;
+      return c.autorizados.some((a) => {
+        const nomeRef = norm(a.nome_ref);
+        const nipRef = digits(a.nip || "");
+        if (nomeRef.includes(q)) return true;
+        if (qd && nipRef.includes(qd)) return true;
+        if (nipRef && nipsAlvo.has(nipRef)) return true;
+        return nomesAlvo.some((n) => n && (nomeRef.includes(n) || n.includes(nomeRef)));
+      });
+    });
+  }, [matriz, busca, pessoas]);
 
   const pessoasFiltradas = useMemo(() => {
-    const q = pessoaQuery.trim().toLowerCase().replace(/\./g, "");
+    const q = norm(pessoaQuery).replace(/\./g, "");
     if (!q) return pessoas.slice(0, 12);
+    const qd = digits(pessoaQuery);
     return pessoas.filter((p) =>
-      p.nome.toLowerCase().includes(q) ||
-      (p.identificador || "").includes(q.replace(/\D/g, "")) ||
-      (p.cpf || "").includes(q.replace(/\D/g, "")),
+      norm(`${p.posto_graduacao || ""} ${p.nome}`).includes(q) ||
+      (!!qd && digits(p.identificador || "").includes(qd)) ||
+      (!!qd && digits(p.cpf || "").includes(qd)),
     ).slice(0, 12);
   }, [pessoas, pessoaQuery]);
+
+  const abrirEdicao = (c: ApiChaveMatriz) => {
+    setEditForm({ numero: String(c.numero), nome: c.nome, categoria: c.categoria });
+    setEditFor(c);
+  };
+
 
   return (
     <div className="p-6 space-y-5">
@@ -86,7 +140,7 @@ export default function GerenciamentoChaves() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={busca} onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar chave, local ou militar"
+            placeholder="Buscar chave, local, militar, NIP ou CPF"
             className="pl-9 bg-secondary border-border"
           />
         </div>
@@ -102,10 +156,21 @@ export default function GerenciamentoChaves() {
                 <p className="text-2xl font-bold leading-none">{String(c.numero).padStart(2, "0")}</p>
                 <p className="text-sm font-medium mt-1">{c.nome}</p>
               </div>
-              <Badge variant={c.categoria === "secreta" ? "destructive" : "secondary"} className="uppercase text-[10px]">
-                {c.categoria}
-              </Badge>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Badge variant={c.categoria === "secreta" ? "destructive" : "secondary"} className="uppercase text-[10px]">
+                  {c.categoria}
+                </Badge>
+                <button
+                  onClick={() => abrirEdicao(c)}
+                  className="text-muted-foreground hover:text-primary p-1 rounded"
+                  aria-label={`Editar chave ${c.numero}`}
+                  title="Editar chave"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
+
 
             <p className="text-[11px] font-mono text-muted-foreground flex items-center gap-1">
               <ShieldCheck className="w-3 h-3" /> {c.regra_label}
@@ -196,6 +261,59 @@ export default function GerenciamentoChaves() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Editar configuração da chave */}
+      <Dialog open={!!editFor} onOpenChange={(v) => { if (!v) setEditFor(null); }}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar chave</DialogTitle>
+            <DialogDescription>
+              As autorizações já cadastradas são preservadas automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">NÚMERO</Label>
+              <Input
+                type="number" min={1} value={editForm.numero}
+                onChange={(e) => setEditForm((f) => ({ ...f, numero: e.target.value }))}
+                className="bg-secondary border-border"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">NOME / LOCAL</Label>
+              <Input
+                value={editForm.nome}
+                onChange={(e) => setEditForm((f) => ({ ...f, nome: e.target.value }))}
+                className="bg-secondary border-border"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">CATEGORIA</Label>
+              <Select
+                value={editForm.categoria}
+                onValueChange={(v) => setEditForm((f) => ({ ...f, categoria: v as "secreta" | "geral" }))}
+              >
+                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="geral">GERAL</SelectItem>
+                  <SelectItem value="secreta">SECRETA</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditFor(null)}>Cancelar</Button>
+            <Button
+              disabled={editar.isPending || !editForm.nome.trim() || !Number(editForm.numero)}
+              onClick={() => editar.mutate()}
+            >
+              {editar.isPending ? "Salvando..." : "Salvar alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
