@@ -366,6 +366,16 @@ export const api = {
       "/visitantes/entrada-manual", { method: "POST", body: JSON.stringify(body) }),
 
 
+  // ===== Configuração da própria chave (número, nome/local, categoria) =====
+  updateChaveConfig: (
+    numeroAtual: number,
+    body: { numero: number; nome: string; categoria: "secreta" | "geral" },
+  ) =>
+    request<{ ok: true }>(`/chaves-config/${numeroAtual}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+
   // ===== Relatórios sob demanda =====
   gerarRelatorioHoje: () =>
     request<{ ok: true; pdfPath: string; xlsxPath: string; dir: string; dateStr: string }>(
@@ -373,7 +383,47 @@ export const api = {
   gerarRelatorioData: (data: string) =>
     request<{ ok: true; pdfPath: string; xlsxPath: string; dir: string; dateStr: string }>(
       `/relatorios/gerar/${data}`, { method: "POST" }),
+
+  // ===== Backups (somente leitura) =====
+  listBackups: () => request<ApiBackupsResponse>("/backups"),
+  fetchBackupBlob: async (caminho: string, inline = false): Promise<Blob> => {
+    const token = getAuthToken();
+    const qs = new URLSearchParams({ path: caminho });
+    if (inline) qs.set("inline", "1");
+    const res = await fetch(`${API_BASE}/api/backups/arquivo?${qs.toString()}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (res.status === 401) {
+      setAuthToken(null);
+      if (onUnauthorized) onUnauthorized();
+      throw new Error("Sessão expirada. Faça login novamente.");
+    }
+    if (!res.ok) {
+      let msg = `HTTP ${res.status}`;
+      try { msg = (await res.json())?.error || msg; } catch { /* binário */ }
+      throw new Error(msg);
+    }
+    return res.blob();
+  },
 };
+
+export interface ApiBackupArquivo {
+  nome: string;
+  categoria: string;
+  origem: "local" | "rede";
+  origem_label: string;
+  caminho: string;
+  tamanho: number;
+  modificado_em: string;
+  extensao: string;
+  tipo: string;
+}
+export interface ApiBackupsResponse {
+  bases: { key: string; label: string; caminho: string }[];
+  categorias: string[];
+  arquivos: ApiBackupArquivo[];
+}
+
 
 
 export interface ApiChaveAutorizacao {
