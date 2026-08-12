@@ -140,7 +140,7 @@ export default function GerenciamentoChaves() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={busca} onChange={(e) => setBusca(e.target.value)}
-            placeholder="Buscar chave, local ou militar"
+            placeholder="Buscar chave, local, militar, NIP ou CPF"
             className="pl-9 bg-secondary border-border"
           />
         </div>
