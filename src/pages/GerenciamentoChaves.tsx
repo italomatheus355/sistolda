@@ -261,6 +261,59 @@ export default function GerenciamentoChaves() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Editar configuração da chave */}
+      <Dialog open={!!editFor} onOpenChange={(v) => { if (!v) setEditFor(null); }}>
+        <DialogContent className="bg-card border-border max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar chave</DialogTitle>
+            <DialogDescription>
+              As autorizações já cadastradas são preservadas automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">NÚMERO</Label>
+              <Input
+                type="number" min={1} value={editForm.numero}
+                onChange={(e) => setEditForm((f) => ({ ...f, numero: e.target.value }))}
+                className="bg-secondary border-border"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">NOME / LOCAL</Label>
+              <Input
+                value={editForm.nome}
+                onChange={(e) => setEditForm((f) => ({ ...f, nome: e.target.value }))}
+                className="bg-secondary border-border"
+              />
+            </div>
+            <div>
+              <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">CATEGORIA</Label>
+              <Select
+                value={editForm.categoria}
+                onValueChange={(v) => setEditForm((f) => ({ ...f, categoria: v as "secreta" | "geral" }))}
+              >
+                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="geral">GERAL</SelectItem>
+                  <SelectItem value="secreta">SECRETA</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditFor(null)}>Cancelar</Button>
+            <Button
+              disabled={editar.isPending || !editForm.nome.trim() || !Number(editForm.numero)}
+              onClick={() => editar.mutate()}
+            >
+              {editar.isPending ? "Salvando..." : "Salvar alterações"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
