@@ -1,7 +1,7 @@
 // SISTOLDA — Administração > Gerenciamento de Chaves.
 // Permite administrar, de forma persistente, quem pode retirar cada chave.
 import { useMemo, useState } from "react";
-import { KeyRound, Plus, Trash2, Search, ShieldCheck } from "lucide-react";
+import { KeyRound, Plus, Trash2, Search, ShieldCheck, Pencil } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiChaveMatriz, ApiChaveAutorizacao, ApiPessoa, SYNC_OPTIONS } from "@/lib/api";
 import { OperationalDateBanner } from "@/components/OperationalDateBanner";
@@ -10,12 +10,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+
+// Normaliza texto para busca: minúsculas, sem acentos e sem pontuação supérflua.
+const norm = (s: string) =>
+  (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const digits = (s: string) => (s || "").replace(/\D/g, "");
 
 export default function GerenciamentoChaves() {
   const qc = useQueryClient();
@@ -24,6 +30,11 @@ export default function GerenciamentoChaves() {
   const [pessoaQuery, setPessoaQuery] = useState("");
   const [pessoaSel, setPessoaSel] = useState<ApiPessoa | null>(null);
   const [confirmDel, setConfirmDel] = useState<{ aut: ApiChaveAutorizacao; chave: ApiChaveMatriz } | null>(null);
+  const [editFor, setEditFor] = useState<ApiChaveMatriz | null>(null);
+  const [editForm, setEditForm] = useState<{ numero: string; nome: string; categoria: "secreta" | "geral" }>({
+    numero: "", nome: "", categoria: "geral",
+  });
+
 
   const { data: matriz = [], isLoading } = useQuery({
     queryKey: ["chaves-autorizacoes"], queryFn: api.listChaveAutorizacoes, ...SYNC_OPTIONS,
