@@ -61,25 +61,68 @@ export default function GerenciamentoChaves() {
     onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
 
+  const editar = useMutation({
+    mutationFn: () =>
+      api.updateChaveConfig(editFor!.numero, {
+        numero: Number(editForm.numero),
+        nome: editForm.nome.trim(),
+        categoria: editForm.categoria,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chaves-autorizacoes"] });
+      qc.invalidateQueries({ queryKey: ["chaves"] });
+      toast({ title: "Chave atualizada", description: "As autorizações foram preservadas." });
+      setEditFor(null);
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
   const filtradas = useMemo(() => {
-    const q = busca.trim().toLowerCase();
+    const q = norm(busca);
     if (!q) return matriz;
-    return matriz.filter((c) =>
-      String(c.numero).padStart(2, "0").includes(q) ||
-      c.nome.toLowerCase().includes(q) ||
-      c.autorizados.some((a) => a.nome_ref.toLowerCase().includes(q)),
-    );
-  }, [matriz, busca]);
+    const qd = digits(busca);
+
+    // Pessoas que casam com a busca (nome, NIP ou CPF) — usadas para localizar
+    // as chaves em que esse militar possui autorização.
+    const pessoasAlvo = pessoas.filter((p) => {
+      const nomeOk = norm(`${p.posto_graduacao || ""} ${p.nome}`).includes(q);
+      const idOk = !!qd && (digits(p.identificador || "").includes(qd) || digits(p.cpf || "").includes(qd));
+      return nomeOk || idOk;
+    });
+    const nipsAlvo = new Set(pessoasAlvo.map((p) => digits(p.identificador || "")).filter(Boolean));
+    const nomesAlvo = pessoasAlvo.map((p) => norm(p.nome)).filter(Boolean);
+
+    return matriz.filter((c) => {
+      if (String(c.numero).padStart(2, "0").includes(q) || String(c.numero) === q) return true;
+      if (norm(c.nome).includes(q)) return true;
+      if (norm(c.regra_label || "").includes(q)) return true;
+      return c.autorizados.some((a) => {
+        const nomeRef = norm(a.nome_ref);
+        const nipRef = digits(a.nip || "");
+        if (nomeRef.includes(q)) return true;
+        if (qd && nipRef.includes(qd)) return true;
+        if (nipRef && nipsAlvo.has(nipRef)) return true;
+        return nomesAlvo.some((n) => n && (nomeRef.includes(n) || n.includes(nomeRef)));
+      });
+    });
+  }, [matriz, busca, pessoas]);
 
   const pessoasFiltradas = useMemo(() => {
-    const q = pessoaQuery.trim().toLowerCase().replace(/\./g, "");
+    const q = norm(pessoaQuery).replace(/\./g, "");
     if (!q) return pessoas.slice(0, 12);
+    const qd = digits(pessoaQuery);
     return pessoas.filter((p) =>
-      p.nome.toLowerCase().includes(q) ||
-      (p.identificador || "").includes(q.replace(/\D/g, "")) ||
-      (p.cpf || "").includes(q.replace(/\D/g, "")),
+      norm(`${p.posto_graduacao || ""} ${p.nome}`).includes(q) ||
+      (!!qd && digits(p.identificador || "").includes(qd)) ||
+      (!!qd && digits(p.cpf || "").includes(qd)),
     ).slice(0, 12);
   }, [pessoas, pessoaQuery]);
+
+  const abrirEdicao = (c: ApiChaveMatriz) => {
+    setEditForm({ numero: String(c.numero), nome: c.nome, categoria: c.categoria });
+    setEditFor(c);
+  };
+
 
   return (
     <div className="p-6 space-y-5">
