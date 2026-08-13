@@ -9,8 +9,8 @@ const {
 } = require("./relatoriosService");
 
 const SCHEDULE_DIARIO     = process.env.SISTOLDA_RELATORIO_CRON   || "0 20 * * *";
-const SCHEDULE_MENSAL     = process.env.SISTOLDA_RELATORIO_MENSAL || "50 23 28-31 * *";
-const SCHEDULE_BACKUP     = process.env.SISTOLDA_BACKUP_CRON      || "0 2 * * *";
+const SCHEDULE_MENSAL     = process.env.SISTOLDA_RELATORIO_MENSAL || "0 20 1 * *";
+const SCHEDULE_BACKUP     = process.env.SISTOLDA_BACKUP_CRON      || "0 20 * * *";
 const SCHEDULE_INTEGRITY  = process.env.SISTOLDA_INTEGRITY_CRON   || "0 3 * * *";
 const RETRY_DELAY_MIN     = Number(process.env.SISTOLDA_RETRY_MIN || 10);
 const RETRY_MAX           = Number(process.env.SISTOLDA_RETRY_MAX || 6);
@@ -159,7 +159,6 @@ function startScheduler() {
 
   if (cron.validate(SCHEDULE_MENSAL)) {
     cron.schedule(SCHEDULE_MENSAL, async () => {
-      if (!isLastDayOfMonth()) return;
       const mes = new Date().toISOString().slice(0, 7);
       log("BACKUP-MENSAL", `Iniciando ${mes}`);
       audit({ acao: "relatorio_mensal.inicio", descricao: `Iniciando ${mes}` });
