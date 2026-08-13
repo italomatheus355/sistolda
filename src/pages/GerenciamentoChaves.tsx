@@ -1,7 +1,4 @@
-// SISTOLDA — Administração > Gerenciamento de Chaves.
-// Permite administrar, de forma persistente, quem pode retirar cada chave.
-import { useMemo, useState } from "react";
-import { KeyRound, Plus, Trash2, Search, ShieldCheck, Pencil } from "lucide-react";
+import { KeyRound, Plus, Trash2, Search, ShieldCheck, Pencil, Download, FileText } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiChaveMatriz, ApiChaveAutorizacao, ApiPessoa, SYNC_OPTIONS } from "@/lib/api";
 import { OperationalDateBanner } from "@/components/OperationalDateBanner";
@@ -17,6 +14,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useMemo, useState } from "react";
 
 // Normaliza texto para busca: minúsculas, sem acentos e sem pontuação supérflua.
 const norm = (s: string) =>
@@ -82,8 +82,6 @@ export default function GerenciamentoChaves() {
     if (!q) return matriz;
     const qd = digits(busca);
 
-    // Pessoas que casam com a busca (nome, NIP ou CPF) — usadas para localizar
-    // as chaves em que esse militar possui autorização.
     const pessoasAlvo = pessoas.filter((p) => {
       const nomeOk = norm(`${p.posto_graduacao || ""} ${p.nome}`).includes(q);
       const idOk = !!qd && (digits(p.identificador || "").includes(qd) || digits(p.cpf || "").includes(qd));
@@ -205,7 +203,6 @@ export default function GerenciamentoChaves() {
         ))}
       </div>
 
-      {/* Adicionar autorização */}
       <Dialog open={!!addFor} onOpenChange={(v) => { if (!v) { setAddFor(null); setPessoaSel(null); } }}>
         <DialogContent className="bg-card border-border max-w-lg">
           <DialogHeader>
@@ -246,7 +243,6 @@ export default function GerenciamentoChaves() {
         </DialogContent>
       </Dialog>
 
-      {/* Confirmar remoção */}
       <AlertDialog open={!!confirmDel} onOpenChange={(v) => { if (!v) setConfirmDel(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -262,7 +258,6 @@ export default function GerenciamentoChaves() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Editar configuração da chave */}
       <Dialog open={!!editFor} onOpenChange={(v) => { if (!v) setEditFor(null); }}>
         <DialogContent className="bg-card border-border max-w-md">
           <DialogHeader>

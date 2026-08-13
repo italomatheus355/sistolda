@@ -103,7 +103,7 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border p-3">
+      <SidebarFooter className="border-t border-border p-3 space-y-3">
         {user && (
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
@@ -115,6 +115,10 @@ export function AppSidebar() {
             </button>
           </div>
         )}
+        <div className="pt-2 border-t border-border/50">
+          <p className="text-[10px] text-muted-foreground font-medium">Desenvolvido por Ítalo Matheus</p>
+          <p className="text-[9px] text-muted-foreground/70 font-mono">Versão 1.0</p>
+        </div>
       </SidebarFooter>
     </Sidebar>
   );
