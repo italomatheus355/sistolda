@@ -285,16 +285,22 @@ export default function Visitantes() {
           <div className="space-y-4 mt-2">
             <div>
               <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">DESTINO *</Label>
-              <Input
-                value={destino}
-                onChange={(e) => setDestino(e.target.value)}
-                onFocus={() => setCapturaPausada(true)}
-                onMouseDown={() => setCapturaPausada(true)}
-                placeholder="Local de destino dentro do quartel"
-                className="bg-secondary border-border"
-                autoFocus
-              />
+              <Select
+                value={destino || undefined}
+                onValueChange={(v) => { setCapturaPausada(false); setDestino(v); }}
+                onOpenChange={(open) => { if (open) setCapturaPausada(true); }}
+              >
+                <SelectTrigger className="bg-secondary border-border">
+                  <SelectValue placeholder="Selecione o destino" />
+                </SelectTrigger>
+                <SelectContent className="max-h-72">
+                  {LOCALIDADES.map((l) => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+
 
             <div className="grid grid-cols-2 gap-2">
               <Button
