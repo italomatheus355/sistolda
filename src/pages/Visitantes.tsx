@@ -27,6 +27,35 @@ import { useAuth } from "@/hooks/useAuth";
 
 const onlyDigits = (v: string) => (v || "").replace(/\D/g, "");
 
+// Localidades fixas do quartel (destinos de visitantes)
+const LOCALIDADES = [
+  "Área Externa",
+  "Hangar",
+  "Segurança",
+  "Operações",
+  "SECOM",
+  "Suprimentos",
+  "Pessoal",
+  "PMC",
+  "Inteligência",
+  "CPD",
+  "Praça d'Armas",
+  "Oficina de MV",
+  "Oficina de SV",
+  "PPU",
+  "CQ — Controle de Qualidade",
+  "Planejamento",
+  "Vestiário de SUB/1ºSG",
+  "Vestiário de 2ºSG/3ºSG",
+  "Vestiário de Cabos e Marinheiros",
+  "Vestiários Oficiais",
+  "Banheiro Feminino",
+  "Armamento",
+  "Sala do Comandante",
+  "Sala do Imediato",
+  "Departamento de Manutenção",
+] as const;
+
 const TIPO_LABEL: Record<PessoaTipo, string> = {
   marinha: "Militar da Marinha",
   exercito: "Militar do Exército",
