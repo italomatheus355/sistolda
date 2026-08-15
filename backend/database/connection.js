@@ -58,6 +58,9 @@ function migrateOperationalTables() {
   addColumnIfMissing("retiradas_chaves", "pessoa_tipo", "ALTER TABLE retiradas_chaves ADD COLUMN pessoa_tipo TEXT DEFAULT 'marinha'");
   addColumnIfMissing("historico_viaturas", "pessoa_tipo", "ALTER TABLE historico_viaturas ADD COLUMN pessoa_tipo TEXT DEFAULT 'marinha'");
   addColumnIfMissing("materiais", "pessoa_tipo", "ALTER TABLE materiais ADD COLUMN pessoa_tipo TEXT DEFAULT 'marinha'");
+  addColumnIfMissing("materiais", "status", "ALTER TABLE materiais ADD COLUMN status TEXT DEFAULT 'em_uso'");
+  addColumnIfMissing("materiais", "data_saida", "ALTER TABLE materiais ADD COLUMN data_saida TEXT");
+  addColumnIfMissing("materiais", "cabo_saida", "ALTER TABLE materiais ADD COLUMN cabo_saida TEXT");
 }
 
 function migratePessoas() {

@@ -165,6 +165,9 @@ export interface ApiMaterial {
   data_registro: string;
   cabo_registro: string | null;
   pessoa_tipo?: PessoaTipo;
+  status?: string | null;
+  data_saida?: string | null;
+  cabo_saida?: string | null;
 }
 export interface ApiMilitar {
   id: number;
@@ -276,6 +279,8 @@ export const api = {
   listMateriais: () => request<ApiMaterial[]>("/materiais"),
   createMaterial: (body: Omit<ApiMaterial, "id" | "data_registro">) =>
     request("/materiais", { method: "POST", body: JSON.stringify(body) }),
+  saidaMaterial: (id: number, cabo?: string | null) =>
+    request(`/materiais/${id}/saida`, { method: "POST", body: JSON.stringify({ cabo: cabo ?? null }) }),
 
   // Militares
   listMilitares: () => request<ApiMilitar[]>("/militares"),

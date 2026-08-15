@@ -37,6 +37,9 @@ export default function Viaturas() {
   const [kmRetorno, setKmRetorno] = useState("");
   const [autonomia, setAutonomia] = useState("");
 
+  // Biometria só inicia quando o operador aciona explicitamente
+  const [capturaAtiva, setCapturaAtiva] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
 
   const [fIni, setFIni] = useState("");
@@ -86,7 +89,7 @@ export default function Viaturas() {
         descricao: resp.descricao || `Operação na viatura ${viatura.prefixo}`,
         modulo: "viaturas",
       });
-      setDialogType(null); setSelected(null);
+      setDialogType(null); setSelected(null); setCapturaAtiva(false);
       setDestino(""); setKmRetorno(""); setAutonomia("");
     },
     onError: (e: Error) => toast({ title: "Falha na autenticação", description: e.message, variant: "destructive" }),
@@ -95,6 +98,7 @@ export default function Viaturas() {
   const handleClick = (v: ApiViatura) => {
     if (v.status === "manutencao") return;
     setSelected(v);
+    setCapturaAtiva(false);
     setDialogType(v.status === "disponivel" ? "saida" : "retorno");
   };
 
@@ -248,7 +252,7 @@ export default function Viaturas() {
       </Tabs>
 
       {/* ===== Saída ===== */}
-      <Dialog open={dialogType === "saida"} onOpenChange={() => { setDialogType(null); setDestino(""); }}>
+      <Dialog open={dialogType === "saida"} onOpenChange={() => { setDialogType(null); setDestino(""); setCapturaAtiva(false); }}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><Car className="w-5 h-5 text-primary" /> Saída — {selected?.prefixo}</DialogTitle>
@@ -263,19 +267,30 @@ export default function Viaturas() {
               <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">DESTINO *</Label>
               <Input value={destino} onChange={(e) => setDestino(e.target.value)} placeholder="Local de destino" className="bg-secondary border-border" autoFocus />
             </div>
-            <BiometricCapture
-              onCapture={onBiometriaSaida}
-              disabled={autenticarMutation.isPending || !destino.trim()}
-              label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
-              hint={destino.trim() ? "Posicione o dedo no leitor para confirmar a saída." : "Informe o destino antes da biometria."}
-              autoRefocus={true}
-            />
+            {!capturaAtiva ? (
+              <Button
+                type="button"
+                className="w-full"
+                disabled={!destino.trim() || autenticarMutation.isPending}
+                onClick={() => setCapturaAtiva(true)}
+              >
+                Iniciar biometria
+              </Button>
+            ) : (
+              <BiometricCapture
+                onCapture={onBiometriaSaida}
+                disabled={autenticarMutation.isPending || !destino.trim()}
+                label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
+                hint="Posicione o dedo no leitor para confirmar a saída."
+                autoRefocus={true}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>
 
       {/* ===== Retorno ===== */}
-      <Dialog open={dialogType === "retorno"} onOpenChange={() => { setDialogType(null); setKmRetorno(""); setAutonomia(""); }}>
+      <Dialog open={dialogType === "retorno"} onOpenChange={() => { setDialogType(null); setKmRetorno(""); setAutonomia(""); setCapturaAtiva(false); }}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2"><RotateCcw className="w-5 h-5 text-primary" /> Retorno — {selected?.prefixo}</DialogTitle>
@@ -290,13 +305,24 @@ export default function Viaturas() {
               <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">AUTONOMIA</Label>
               <Input value={autonomia} onChange={(e) => setAutonomia(e.target.value)} placeholder="ex: 1/2 tanque" className="bg-secondary border-border" />
             </div>
-            <BiometricCapture
-              onCapture={onBiometriaRetorno}
-              disabled={autenticarMutation.isPending || !kmRetorno.trim()}
-              label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
-              hint={kmRetorno.trim() ? "Posicione o dedo no leitor para confirmar o retorno." : "Informe a quilometragem antes da biometria."}
-              autoRefocus={true}
-            />
+            {!capturaAtiva ? (
+              <Button
+                type="button"
+                className="w-full"
+                disabled={!kmRetorno.trim() || autenticarMutation.isPending}
+                onClick={() => setCapturaAtiva(true)}
+              >
+                Iniciar biometria
+              </Button>
+            ) : (
+              <BiometricCapture
+                onCapture={onBiometriaRetorno}
+                disabled={autenticarMutation.isPending || !kmRetorno.trim()}
+                label={autenticarMutation.isPending ? "PROCESSANDO..." : "AGUARDANDO BIOMETRIA"}
+                hint="Posicione o dedo no leitor para confirmar o retorno."
+                autoRefocus={true}
+              />
+            )}
           </div>
         </DialogContent>
       </Dialog>

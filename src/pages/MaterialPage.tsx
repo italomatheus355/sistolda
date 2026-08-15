@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Package, Plus, Search, Filter } from "lucide-react";
+import { Package, Plus, Search, Filter, LogOut } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, ApiMaterial, SYNC_OPTIONS, nomeDoMilitarPorNip } from "@/lib/api";
 import { getCaboOnDuty } from "@/lib/localDb";
@@ -7,6 +7,11 @@ import { showOperationConfirm } from "@/components/OperationConfirm";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 
@@ -36,8 +41,10 @@ const MaterialPage = () => {
       const m = await api.getMilitarByNip(nip);
       if (cancel) return;
       if (m?.nome) {
-        setMilitarReconhecido(m.nome);
-        setForm((f) => ({ ...f, militar: m.nome }));
+        const posto = (m.posto_graduacao || "").trim();
+        const ident = posto ? `${posto} ${m.nome}` : m.nome;
+        setMilitarReconhecido(ident);
+        setForm((f) => ({ ...f, militar: ident }));
       } else {
         setMilitarReconhecido(null);
       }
@@ -63,6 +70,21 @@ const MaterialPage = () => {
       setForm({ nome_material: "", militar: "", nip: "", destino: "" });
       setMilitarReconhecido(null);
       setOpen(false);
+    },
+    onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const [saidaAlvo, setSaidaAlvo] = useState<ApiMaterial | null>(null);
+
+  const saidaMutation = useMutation({
+    mutationFn: async (reg: ApiMaterial) => {
+      await api.saidaMaterial(reg.id, getCaboOnDuty());
+      return reg;
+    },
+    onSuccess: (reg) => {
+      queryClient.invalidateQueries({ queryKey: ["registros_materiais"] });
+      showOperationConfirm({ nome: reg.militar, acao: "deu saída no material", detalhe: reg.nome_material, variant: "material" });
+      setSaidaAlvo(null);
     },
     onError: (e: any) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
   });
@@ -127,11 +149,13 @@ const MaterialPage = () => {
               <TableHead className="text-xs font-mono">DESTINO</TableHead>
               <TableHead className="text-xs font-mono">DATA / HORA</TableHead>
               <TableHead className="text-xs font-mono">CABO AUX.</TableHead>
+              <TableHead className="text-xs font-mono">STATUS</TableHead>
+              <TableHead className="text-xs font-mono text-right">AÇÃO</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
+              <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">Nenhum registro</TableCell></TableRow>
             ) : filtered.map((r) => (
               <TableRow key={r.id} className="hover:bg-secondary/30">
                 <TableCell className="text-sm font-medium">{r.nome_material}</TableCell>
@@ -143,11 +167,51 @@ const MaterialPage = () => {
                 <TableCell className="text-sm text-muted-foreground">{r.destino}</TableCell>
                 <TableCell className="text-xs font-mono text-muted-foreground">{new Date(r.data_registro).toLocaleString("pt-BR")}</TableCell>
                 <TableCell className="text-sm">{r.cabo_registro || "—"}</TableCell>
+                <TableCell>
+                  {r.data_saida ? (
+                    <div className="flex flex-col">
+                      <Badge variant="outline" className="w-fit text-[10px] font-mono">SAÍDA REGISTRADA</Badge>
+                      <span className="text-[10px] font-mono text-muted-foreground mt-1">
+                        {new Date(r.data_saida).toLocaleString("pt-BR")}
+                      </span>
+                    </div>
+                  ) : (
+                    <Badge className="bg-status-borrowed/20 text-status-borrowed border-0 text-[10px] font-mono">EM POSSE</Badge>
+                  )}
+                </TableCell>
+                <TableCell className="text-right">
+                  {!r.data_saida && (
+                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setSaidaAlvo(r)}>
+                      <LogOut className="w-3.5 h-3.5" /> Dar saída
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
       </div>
+
+      <AlertDialog open={!!saidaAlvo} onOpenChange={(o) => !o && setSaidaAlvo(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar saída do material</AlertDialogTitle>
+            <AlertDialogDescription>
+              Registrar a saída de <strong>{saidaAlvo?.nome_material}</strong> ({saidaAlvo?.militar})?
+              O registro permanece no histórico com data e hora da saída.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={saidaMutation.isPending}
+              onClick={(e) => { e.preventDefault(); if (saidaAlvo) saidaMutation.mutate(saidaAlvo); }}
+            >
+              {saidaMutation.isPending ? "Registrando..." : "Confirmar saída"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="bg-card border-border max-w-md">

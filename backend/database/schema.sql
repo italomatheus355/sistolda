@@ -135,7 +135,10 @@ CREATE TABLE IF NOT EXISTS materiais (
   destino TEXT NOT NULL,
   data_registro TEXT NOT NULL DEFAULT (datetime('now','localtime')),
   cabo_registro TEXT,
-  pessoa_tipo TEXT DEFAULT 'marinha'
+  pessoa_tipo TEXT DEFAULT 'marinha',
+  status TEXT DEFAULT 'em_uso',
+  data_saida TEXT,
+  cabo_saida TEXT
 );
 
 CREATE TABLE IF NOT EXISTS biometrias (
