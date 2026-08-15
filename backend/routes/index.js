@@ -88,6 +88,7 @@ router.post("/militares-externos/identificar-biometria", requireRole(...RW), ext
 // Materiais
 router.get("/materiais", requireRole(...ALL), materiais.list);
 router.post("/materiais", requireRole(...RW), materiais.create);
+router.post("/materiais/:id/saida", requireRole(...RW), materiais.saida);
 
 // PDV
 router.get("/pdv/:data", requireRole(...ALL), pdv.get);
