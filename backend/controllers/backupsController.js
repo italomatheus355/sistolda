@@ -1,14 +1,16 @@
-// SISTOLDA — Visualização (somente leitura) dos backups/relatórios já produzidos.
-// NÃO gera, altera, move ou apaga nenhum arquivo: apenas lista e serve o que existe.
+// SISTOLDA — Visualização (somente leitura) dos backups/relatórios já produzidos
+// + execução manual/diagnóstico da rotina de backup nos 3 destinos.
+// A listagem NÃO gera, altera, move ou apaga arquivos.
 const fs = require("fs");
 const path = require("path");
-const { LOCAL_BASE, NETWORK_BASE, CATEGORIES } = require("../services/relatoriosService");
+const {
+  CATEGORIES, DESTINOS, baseAtiva, diagnosticarDestinos,
+} = require("../services/relatoriosService");
+const { runBackupCompleto } = require("../services/scheduler");
 const { logAuditoria } = require("../services/auditService");
 
-const BASES = [
-  { key: "local", label: "Local", base: LOCAL_BASE },
-  { key: "rede", label: "Rede", base: NETWORK_BASE },
-];
+const BASES = DESTINOS.map((d) => ({ key: d.key, label: d.label, base: baseAtiva(d) }));
+
 
 function listarPasta(baseKey, baseLabel, base, categoria) {
   const dir = path.join(base, categoria);
