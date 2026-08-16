@@ -404,10 +404,28 @@ async function gerarRelatorioMensal(mesStr) {
   const dados = coletarDados(mesStr + "-01"); // Aproximação
   const fnPdf = `RELATORIO_MENSAL_${mesStr}.pdf`;
   const res = await writeRedundant("RELATORIOS", fnPdf, (p) => gerarPDF(p, mesStr, dados, true));
-  return { pdfPath: res.localPath, dir: path.dirname(res.localPath || "") };
+  return {
+    pdfPath: res.localPath || res.networkPaths[0],
+    dir: path.dirname(res.localPath || ""),
+    destinos: res.destinos,
+    errors: res.errors,
+  };
+}
+
+// Diagnóstico: estado atual de cada destino (acessível? gravável? qual caminho?).
+function diagnosticarDestinos() {
+  return DESTINOS.map((d) => {
+    const item = { key: d.key, label: d.label, ok: false, caminho: null, candidatos: d.candidates, error: null };
+    try {
+      const { base, dir } = resolveBase(d, "DATABASE");
+      item.ok = true; item.caminho = base; item.pastaTestada = dir;
+    } catch (e) { item.error = e.message; }
+    return item;
+  });
 }
 
 module.exports = {
   gerarRelatorioDiario, gerarRelatorioMensal, isoDate,
-  writeRedundant, LOCAL_BASE, CATEGORIES
+  writeRedundant, diagnosticarDestinos,
+  LOCAL_BASE, CATEGORIES, DESTINOS, baseAtiva,
 };
