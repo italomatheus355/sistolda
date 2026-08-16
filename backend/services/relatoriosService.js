@@ -384,16 +384,19 @@ async function gerarRelatorioDiario(dateStr = isoDate()) {
   const fnPdf  = `RELATORIO_DIARIO_${dateStr}.pdf`;
   const fnXlsx = `RELATORIO_DIARIO_${dateStr}.xlsx`;
   const res = await writeRedundant("RELATORIOS", fnPdf, (p) => gerarPDF(p, dateStr, dados, false));
-  await writeRedundant("RELATORIOS", fnXlsx, (p) => gerarXLSX(p, dados));
-  
+  const resXlsx = await writeRedundant("RELATORIOS", fnXlsx, (p) => gerarXLSX(p, dados));
+
   return {
     pdfPath: res.localPath || res.networkPaths[0],
+    xlsxPath: resXlsx.localPath || resXlsx.networkPaths[0] || null,
     dir: path.dirname(res.localPath || ""),
     dateStr,
     localOk: !!res.localPath,
     networkOk: res.networkPaths.length > 0,
-    errors: res.errors
+    destinos: res.destinos,
+    errors: res.errors.concat(resXlsx.errors),
   };
+
 }
 
 async function gerarRelatorioMensal(mesStr) {
