@@ -9,7 +9,6 @@ const {
 const { runBackupCompleto } = require("../services/scheduler");
 const { logAuditoria } = require("../services/auditService");
 
-const BASES = DESTINOS.map((d) => ({ key: d.key, label: d.label, base: baseAtiva(d) }));
 
 
 function listarPasta(baseKey, baseLabel, base, categoria) {
@@ -84,7 +83,7 @@ exports.download = (req, res, next) => {
     const alvo = String(req.query.path || "");
     if (!alvo) return res.status(400).json({ error: "Caminho não informado." });
     const resolvido = path.resolve(alvo);
-    const permitido = BASES.some(
+    const permitido = basesAtuais().some(
       (b) => b.base && resolvido.toLowerCase().startsWith(path.resolve(b.base).toLowerCase() + path.sep),
     );
     if (!permitido) return res.status(403).json({ error: "Caminho fora das pastas de backup." });
