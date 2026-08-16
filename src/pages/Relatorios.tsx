@@ -39,6 +39,8 @@ export default function Relatorios() {
   const { isAdmin } = useAuth();
   const [data, setData] = useState<string>(todayIso());
   const [last, setLast] = useState<{ ok: boolean; msg: string } | null>(null);
+  const [resultadoBackup, setResultadoBackup] = useState<ApiBackupDestino[]>([]);
+
 
   const { data: backupsData, isLoading: loadingBackups } = useQuery({
     queryKey: ["backups"],
