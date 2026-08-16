@@ -173,20 +173,45 @@ export default function Relatorios() {
         <TabsContent value="backups" className="mt-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-3">
                 <CardTitle className="text-sm font-mono tracking-widest text-muted-foreground">
                   HISTÓRICO DE BACKUPS
                 </CardTitle>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center flex-wrap">
                   {backupsData?.bases.map(b => (
                     <Badge key={b.key} variant="outline" className="font-mono text-[10px] gap-1 px-2">
                       {b.key === 'local' ? <Server className="w-3 h-3" /> : <Network className="w-3 h-3" />}
-                      {b.label}: {b.caminho}
+                      {b.label}: {b.caminho || "indisponível"}
+                    </Badge>
+                  ))}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-2"
+                    disabled={executarBackup.isPending}
+                    onClick={() => executarBackup.mutate()}
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                    {executarBackup.isPending ? "Executando..." : "Executar backup agora (teste)"}
+                  </Button>
+                </div>
+              </div>
+              {resultadoBackup.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {resultadoBackup.map(d => (
+                    <Badge
+                      key={d.key}
+                      variant="outline"
+                      className={`font-mono text-[10px] gap-1 px-2 ${d.ok ? "text-status-available border-status-available/50" : "text-destructive border-destructive/50"}`}
+                    >
+                      {d.ok ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                      {d.label}: {d.ok ? "SUCESSO" : `ERRO — ${d.error}`}
                     </Badge>
                   ))}
                 </div>
-              </div>
+              )}
             </CardHeader>
+
             <CardContent>
               {loadingBackups ? (
                 <div className="py-10 text-center font-mono text-sm text-muted-foreground animate-pulse">
