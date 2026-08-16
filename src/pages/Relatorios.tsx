@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { api, ApiBackupArquivo, SYNC_OPTIONS } from "@/lib/api";
+import { api, ApiBackupArquivo, ApiBackupDestino, SYNC_OPTIONS } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
 
 function todayIso() {
