@@ -1,11 +1,12 @@
-// SISTOLDA — Agendador interno (cron) com gravação redundante (rede + local).
+// SISTOLDA — Agendador interno (cron) com gravação redundante em 3 destinos
+// independentes: Servidor Local, Rede Informática e Rede SEGORG.
 const cron = require("node-cron");
 const fs = require("fs");
 const path = require("path");
 const { db } = require("../database/connection");
 const {
   gerarRelatorioDiario, gerarRelatorioMensal,
-  isoDate, writeRedundant, LOCAL_BASE,
+  isoDate, writeRedundant, diagnosticarDestinos, LOCAL_BASE,
 } = require("./relatoriosService");
 
 const SCHEDULE_DIARIO     = process.env.SISTOLDA_RELATORIO_CRON   || "0 20 * * *";
@@ -14,6 +15,7 @@ const SCHEDULE_BACKUP     = process.env.SISTOLDA_BACKUP_CRON      || "0 20 * * *
 const SCHEDULE_INTEGRITY  = process.env.SISTOLDA_INTEGRITY_CRON   || "0 3 * * *";
 const RETRY_DELAY_MIN     = Number(process.env.SISTOLDA_RETRY_MIN || 10);
 const RETRY_MAX           = Number(process.env.SISTOLDA_RETRY_MAX || 6);
+
 
 function ts() { return new Date().toISOString().replace("T", " ").slice(0, 19); }
 function log(tag, msg) { console.log(`[${tag}] ${ts()} ${msg}`); }
@@ -40,22 +42,23 @@ async function runRelatorioDiario({ dateStr = isoDate(), origin = "scheduler", a
 
   try {
     const r = await gerarRelatorioDiario(dateStr);
-    log("BACKUP", `Relatório local=${r.localOk ? "OK" : "FALHA"} rede=${r.networkOk ? "OK" : "FALHA"}`);
 
-    if (r.localOk) {
-      audit({ acao: "relatorio.local_concluido", descricao: `Backup local de relatórios concluído.` });
+    for (const d of r.destinos || []) {
+      const linha = `${d.label}: ${d.ok ? "SUCESSO" : `ERRO — ${d.error}`}`;
+      log("BACKUP", linha);
+      audit({
+        acao: d.ok ? "relatorio.destino_ok" : "relatorio.destino_erro",
+        descricao: `Relatório ${dateStr} — ${linha}`,
+      });
     }
 
-    if (r.networkOk) {
-      audit({ acao: "relatorio.rede_concluido", descricao: `Backup em rede de relatórios concluído.` });
-    } else {
-      log("BACKUP", `Backup em rede não executado (caminho indisponível).`);
-      audit({ acao: "relatorio.rede_indisponivel", descricao: `Backup em rede não executado (caminho indisponível).` });
+    if (!r.localOk && !r.networkOk) {
+      throw new Error(r.errors.join(" | ") || "nenhum destino disponível");
     }
 
     audit({
       acao: "relatorio.sucesso",
-      descricao: `Relatório diário ${dateStr} processado. PDF=${path.basename(r.pdfPath)} XLSX=${path.basename(r.xlsxPath)}.`,
+      descricao: `Relatório diário ${dateStr} processado. PDF=${r.pdfPath ? path.basename(r.pdfPath) : "—"} XLSX=${r.xlsxPath ? path.basename(r.xlsxPath) : "—"}.`,
     });
     return { ok: true, ...r };
   } catch (e) {
@@ -64,6 +67,7 @@ async function runRelatorioDiario({ dateStr = isoDate(), origin = "scheduler", a
     audit({ acao: "relatorio.erro", descricao: msg });
     return scheduleRetry(dateStr, attempt, msg);
   }
+
 }
 
 function scheduleRetry(dateStr, attempt, motivo) {
@@ -82,6 +86,18 @@ function scheduleRetry(dateStr, attempt, motivo) {
 }
 
 // =================== BACKUPS DB / LOGS ===================
+// Registra o resultado de CADA destino individualmente (log + auditoria).
+function reportarDestinos(tag, titulo, destinos) {
+  for (const d of destinos || []) {
+    const linha = `${d.label}: ${d.ok ? "SUCESSO" : `ERRO — ${d.error}`}`;
+    log(tag, linha);
+    audit({
+      acao: d.ok ? `${tag.toLowerCase()}.destino_ok` : `${tag.toLowerCase()}.destino_erro`,
+      descricao: `${titulo} — ${linha}`,
+    });
+  }
+}
+
 async function backupDatabase() {
   const fn = `sistolda-${isoDate()}.db`;
   log("BACKUP-DB", `Iniciando -> DATABASE/${fn}`);
@@ -89,25 +105,14 @@ async function backupDatabase() {
     const res = await writeRedundant("DATABASE", fn, async (target) => {
       await db.backup(target);
     });
-    const localOk = !!res.localPath;
-    const networkOk = !!res.networkPath;
-
-    if (!localOk && !networkOk) throw new Error(res.localError || res.networkError || "indisponível");
-
-    log("BACKUP-DB", `Local=${localOk ? "OK" : "FALHA"} Rede=${networkOk ? "OK" : "FALHA"}`);
-
-    if (localOk) {
-      audit({ acao: "backup_db.local_concluido", descricao: `Backup local DATABASE/${fn} concluído.` });
-    }
-    if (networkOk) {
-      audit({ acao: "backup_db.rede_concluido", descricao: `Backup em rede DATABASE/${fn} concluído.` });
-    } else {
-      log("BACKUP-DB", `Cópia de rede não executada: ${res.networkError || "caminho indisponível"}.`);
-      audit({ acao: "backup_db.rede_indisponivel", descricao: `Backup em rede não executado: ${res.networkError || "caminho indisponível"}.` });
-    }
+    reportarDestinos("BACKUP-DB", `Backup do banco DATABASE/${fn}`, res.destinos);
+    const algum = res.destinos.some((d) => d.ok);
+    if (!algum) throw new Error(res.errors.join(" | ") || "nenhum destino disponível");
+    return res;
   } catch (e) {
     err("BACKUP-DB", e.message);
     audit({ acao: "backup_db.erro", descricao: e.message });
+    return { destinos: [], errors: [e.message] };
   }
 }
 
@@ -117,25 +122,52 @@ async function backupLogs() {
     const rows = db.prepare("SELECT * FROM logs_auditoria WHERE substr(timestamp,1,10) = ?").all(isoDate());
     const data = JSON.stringify(rows, null, 2);
     const res = await writeRedundant("LOGS", fn, (target) => fs.promises.writeFile(target, data, "utf8"));
-    if (!res.localPath && !res.networkPath) throw new Error(res.localError || res.networkError || "indisponível");
-    const localOk = !!res.localPath;
-    const networkOk = !!res.networkPath;
-
-    log("BACKUP-LOGS", `Logs (${rows.length}) Local=${localOk ? "OK" : "FALHA"} Rede=${networkOk ? "OK" : "FALHA"}`);
-
-    if (localOk) {
-      audit({ acao: "backup_logs.local_concluido", descricao: `Backup local de logs (${rows.length} registros) concluído.` });
-    }
-    if (networkOk) {
-      audit({ acao: "backup_logs.rede_concluido", descricao: `Backup em rede de logs concluído.` });
-    } else {
-      audit({ acao: "backup_logs.rede_indisponivel", descricao: `Backup em rede de logs não executado (caminho indisponível).` });
-    }
+    reportarDestinos("BACKUP-LOGS", `Backup de logs (${rows.length} registros) LOGS/${fn}`, res.destinos);
+    const algum = res.destinos.some((d) => d.ok);
+    if (!algum) throw new Error(res.errors.join(" | ") || "nenhum destino disponível");
+    return res;
   } catch (e) {
     err("BACKUP-LOGS", e.message);
     audit({ acao: "backup_logs.erro", descricao: e.message });
+    return { destinos: [], errors: [e.message] };
   }
 }
+
+// Rotina completa (banco + logs + relatório do dia), com resumo por destino.
+// Usada pelo cron das 20:00 e pelo teste manual via API.
+async function runBackupCompleto({ origin = "cron", dateStr = isoDate() } = {}) {
+  log("BACKUP", `Iniciando backup diário (origem=${origin}).`);
+  audit({ acao: "backup.inicio", descricao: `Backup diário iniciado (origem=${origin}).` });
+
+  const resumo = {}; // key -> { label, ok, erros[] }
+  const acumular = (res) => {
+    for (const d of res.destinos || []) {
+      const cur = resumo[d.key] || (resumo[d.key] = { label: d.label, ok: true, erros: [] });
+      if (!d.ok) { cur.ok = false; cur.erros.push(d.error); }
+    }
+  };
+
+  acumular(await backupDatabase());
+  acumular(await backupLogs());
+  const rel = await runRelatorioDiario({ dateStr, origin });
+  acumular(rel);
+
+  const destinos = Object.entries(resumo).map(([key, v]) => ({
+    key, label: v.label, ok: v.ok, error: v.erros[0] || null,
+  }));
+
+  for (const d of destinos) {
+    const linha = `${d.label}: ${d.ok ? "SUCESSO" : `ERRO — ${d.error}`}`;
+    log("BACKUP", linha);
+    audit({ acao: d.ok ? "backup.destino_ok" : "backup.destino_erro", descricao: linha });
+  }
+
+  log("BACKUP", "Backup diário concluído.");
+  audit({ acao: "backup.fim", descricao: "Backup diário concluído." });
+
+  return { ok: destinos.some((d) => d.ok), destinos, relatorio: rel, dateStr };
+}
+
 
 function integrityCheck() {
   try {
@@ -150,13 +182,18 @@ function integrityCheck() {
 function startScheduler() {
   const TZ = process.env.TZ || "America/Sao_Paulo";
   log("SCHEDULER", `Diretório local: ${LOCAL_BASE}`);
+  for (const d of diagnosticarDestinos()) {
+    log("SCHEDULER", `Destino ${d.label}: ${d.ok ? `OK (${d.caminho})` : `INDISPONÍVEL — ${d.error}`}`);
+  }
 
+  // Diário 20:00 — banco + logs + relatório, com resultado por destino.
   if (cron.validate(SCHEDULE_DIARIO)) {
     cron.schedule(SCHEDULE_DIARIO, () => {
-      runRelatorioDiario({ origin: "cron-diario" }).catch(() => {});
+      runBackupCompleto({ origin: "cron-diario" }).catch(() => {});
     }, { timezone: TZ });
   }
 
+  // Mensal — dia 01 às 20:00 (não substitui o diário).
   if (cron.validate(SCHEDULE_MENSAL)) {
     cron.schedule(SCHEDULE_MENSAL, async () => {
       const mes = new Date().toISOString().slice(0, 7);
@@ -164,7 +201,7 @@ function startScheduler() {
       audit({ acao: "relatorio_mensal.inicio", descricao: `Iniciando ${mes}` });
       try {
         const r = await gerarRelatorioMensal(mes);
-        log("BACKUP-MENSAL", `Concluído: ${r.pdfPath}`);
+        reportarDestinos("BACKUP-MENSAL", `Relatório mensal ${mes}`, r.destinos);
         audit({ acao: "relatorio_mensal.sucesso", descricao: `Mensal ${mes} em ${r.dir}` });
       } catch (e) {
         err("BACKUP-MENSAL", e.message);
@@ -173,8 +210,12 @@ function startScheduler() {
     }, { timezone: TZ });
   }
 
-  if (cron.validate(SCHEDULE_BACKUP)) {
-    cron.schedule(SCHEDULE_BACKUP, () => { backupDatabase(); backupLogs(); }, { timezone: TZ });
+  // Cron extra de backup (só quando configurado em horário diferente do diário).
+  if (SCHEDULE_BACKUP !== SCHEDULE_DIARIO && cron.validate(SCHEDULE_BACKUP)) {
+    cron.schedule(SCHEDULE_BACKUP, () => {
+      backupDatabase().catch(() => {});
+      backupLogs().catch(() => {});
+    }, { timezone: TZ });
   }
 
   if (cron.validate(SCHEDULE_INTEGRITY)) {
@@ -184,4 +225,8 @@ function startScheduler() {
   log("SCHEDULER", `Diário="${SCHEDULE_DIARIO}" Mensal="${SCHEDULE_MENSAL}" Backup="${SCHEDULE_BACKUP}" Integridade="${SCHEDULE_INTEGRITY}" TZ=${TZ}`);
 }
 
-module.exports = { startScheduler, runRelatorioDiario, backupDatabase, backupLogs };
+module.exports = {
+  startScheduler, runRelatorioDiario, runBackupCompleto,
+  backupDatabase, backupLogs, diagnosticarDestinos,
+};
+

@@ -391,6 +391,12 @@ export const api = {
 
   // ===== Backups (somente leitura) =====
   listBackups: () => request<ApiBackupsResponse>("/backups"),
+  diagnosticoBackups: () =>
+    request<{ destinos: ApiBackupDestino[] }>("/backups/diagnostico"),
+  executarBackupAgora: () =>
+    request<{ ok: boolean; destinos: ApiBackupDestino[]; dateStr: string }>(
+      "/backups/executar", { method: "POST" }),
+
   fetchBackupBlob: async (caminho: string, inline = false): Promise<Blob> => {
     const token = getAuthToken();
     const qs = new URLSearchParams({ path: caminho });
@@ -428,6 +434,15 @@ export interface ApiBackupsResponse {
   categorias: string[];
   arquivos: ApiBackupArquivo[];
 }
+
+export interface ApiBackupDestino {
+  key: string;
+  label: string;
+  ok: boolean;
+  caminho?: string | null;
+  error?: string | null;
+}
+
 
 
 

@@ -114,6 +114,9 @@ router.post("/relatorios/gerar/:data", requireRole(...ADM), relatorios.gerarData
 // Backups já produzidos — somente leitura (listar / visualizar / baixar)
 router.get("/backups", requireRole(...ADM), backups.list);
 router.get("/backups/arquivo", requireRole(...ADM), backups.download);
+router.get("/backups/diagnostico", requireRole(...ADM), backups.diagnostico);
+router.post("/backups/executar", requireRole(...ADM), backups.executar);
+
 
 // Operação unificada — biometria por NIP
 router.post("/operacao/autenticar-biometria", requireRole(...RW), operacao.autenticarBiometria);

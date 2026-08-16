@@ -12,10 +12,38 @@ const PDFDocument = require("pdfkit");
 const ExcelJS = require("exceljs");
 const { db } = require("../database/connection");
 
-// Configuração dos caminhos de backup
-const NETWORK_1 = "G:\\informatica\\ADMINISTRATIVOS\\BACKUPS-SISTOLDA";
-const NETWORK_2 = "G:\\func_colaterais\\seg_org\\BACKUPS-SISTOLDA";
+// ============================================================
+// DESTINOS DE BACKUP (3, independentes entre si)
+//   1. Servidor Local
+//   2. Rede Informática   (Y:\informatica\ADMINISTRATIVOS\BACKUPS-SISTOLDA)
+//   3. Rede SEGORG        (Y:\func_colaterais\seg_org\BACKUPS-SISTOLDA)
+//
+// Unidades mapeadas (Y:) só existem na sessão do usuário que fez o mapeamento.
+// Quando o backend roda como serviço/outro contexto, a letra não existe — por
+// isso cada destino de rede tem também o caminho UNC equivalente do
+// compartilhamento \\esqdhu41fs, usado automaticamente como alternativa.
+// ============================================================
+const UNC_HOST = process.env.SISTOLDA_UNC_HOST || "\\\\esqdhu41fs";
+
 const LOCAL_BASE = process.env.SISTOLDA_LOCAL_BACKUP_DIR || "C:\\Users\\SISTOLDA\\BACKUPS";
+
+const NETWORK_1_CANDIDATES = [
+  process.env.SISTOLDA_NET1_DIR,
+  "Y:\\informatica\\ADMINISTRATIVOS\\BACKUPS-SISTOLDA",
+  `${UNC_HOST}\\informatica\\ADMINISTRATIVOS\\BACKUPS-SISTOLDA`,
+].filter(Boolean);
+
+const NETWORK_2_CANDIDATES = [
+  process.env.SISTOLDA_NET2_DIR,
+  "Y:\\func_colaterais\\seg_org\\BACKUPS-SISTOLDA",
+  `${UNC_HOST}\\func_colaterais\\seg_org\\BACKUPS-SISTOLDA`,
+].filter(Boolean);
+
+const DESTINOS = [
+  { key: "local", label: "Servidor Local", candidates: [LOCAL_BASE] },
+  { key: "informatica", label: "Rede Informática", candidates: NETWORK_1_CANDIDATES },
+  { key: "segorg", label: "Rede SEGORG", candidates: NETWORK_2_CANDIDATES },
+];
 
 const CATEGORIES = ["DATABASE", "LOGS", "RELATORIOS"];
 
@@ -31,13 +59,47 @@ function brDateTime(s) {
 }
 
 function ensureDir(p) {
-  try { 
-    if (!fs.existsSync(p)) {
-      fs.mkdirSync(p, { recursive: true });
-    }
-    return p; 
+  try {
+    if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
+    return p;
+  } catch (e) { return null; }
+}
+
+// Cria a pasta e comprova permissão de escrita real (arquivo temporário).
+function ensureWritableDir(dir) {
+  if (!ensureDir(dir)) throw new Error(`não foi possível criar/acessar a pasta "${dir}"`);
+  const probe = path.join(dir, `.sistolda-write-test-${process.pid}-${Date.now()}.tmp`);
+  try {
+    fs.writeFileSync(probe, "ok");
+  } catch (e) {
+    throw new Error(`sem permissão de escrita em "${dir}" (${e.code || e.message})`);
+  } finally {
+    try { fs.unlinkSync(probe); } catch { /* ignora */ }
   }
-  catch (e) { return null; }
+  return dir;
+}
+
+// Resolve a base de um destino testando cada candidato (Y: e depois UNC).
+function resolveBase(destino, category) {
+  const problemas = [];
+  for (const cand of destino.candidates) {
+    try {
+      return { base: cand, dir: ensureWritableDir(path.join(cand, category)) };
+    } catch (e) {
+      problemas.push(`${cand}: ${e.message}`);
+    }
+  }
+  const err = new Error(problemas.join(" | ") || "nenhum caminho configurado");
+  err.candidatos = problemas;
+  throw err;
+}
+
+// Base atualmente utilizável de um destino (para listagem de backups).
+function baseAtiva(destino) {
+  for (const cand of destino.candidates) {
+    try { if (fs.existsSync(cand)) return cand; } catch { /* ignora */ }
+  }
+  return destino.candidates[0] || null;
 }
 
 // Garante toda a estrutura local na inicialização.
@@ -47,49 +109,42 @@ function ensureLocalStructure() {
 }
 ensureLocalStructure();
 
+// Grava o mesmo arquivo nos 3 destinos, de forma TOTALMENTE independente:
+// falha em um destino nunca impede os demais.
 async function writeRedundant(category, filename, writeAsync) {
-  const result = { localPath: null, networkPaths: [], errors: [] };
-  
-  // 1. LOCAL (Prioridade)
-  const localDir = ensureDir(path.join(LOCAL_BASE, category));
-  if (localDir) {
-    const lp = path.join(localDir, filename);
-    try { 
-      await writeAsync(lp); 
-      result.localPath = lp; 
-    } catch (e) { 
-      result.errors.push(`Local (${category}): ${e.message}`);
-    }
-  }
+  const result = {
+    localPath: null,
+    networkPaths: [],
+    errors: [],
+    destinos: [], // [{ key, label, ok, path, error }]
+  };
 
-  // 2. REDE 1
-  const netDir1 = ensureDir(path.join(NETWORK_1, category));
-  if (netDir1) {
-    const np1 = path.join(netDir1, filename);
+  for (const destino of DESTINOS) {
+    const item = { key: destino.key, label: destino.label, ok: false, path: null, error: null };
     try {
-      if (result.localPath) fs.copyFileSync(result.localPath, np1);
-      else await writeAsync(np1);
-      result.networkPaths.push(np1);
+      const { dir } = resolveBase(destino, category);
+      const alvo = path.join(dir, filename);
+      // Se o local já foi gravado, apenas copia (mais rápido e idêntico).
+      if (result.localPath && destino.key !== "local") fs.copyFileSync(result.localPath, alvo);
+      else await writeAsync(alvo);
+      item.ok = true;
+      item.path = alvo;
+      if (destino.key === "local") result.localPath = alvo;
+      else result.networkPaths.push(alvo);
     } catch (e) {
-      result.errors.push(`Rede Informatica (${category}): ${e.message}`);
+      item.error = e.message;
+      result.errors.push(`${destino.label} (${category}): ${e.message}`);
     }
-  }
-
-  // 3. REDE 2
-  const netDir2 = ensureDir(path.join(NETWORK_2, category));
-  if (netDir2) {
-    const np2 = path.join(netDir2, filename);
-    try {
-      if (result.localPath) fs.copyFileSync(result.localPath, np2);
-      else await writeAsync(np2);
-      result.networkPaths.push(np2);
-    } catch (e) {
-      result.errors.push(`Rede SegOrg (${category}): ${e.message}`);
-    }
+    result.destinos.push(item);
+    console.log(
+      `[BACKUP] ${destino.label}: ${item.ok ? "SUCESSO" : `ERRO — ${item.error}`}` +
+      ` (${category}/${filename})`,
+    );
   }
 
   return result;
 }
+
 
 // ---------- Coleta de dados ----------
 function coletarDados(dateStr) {
@@ -329,16 +384,19 @@ async function gerarRelatorioDiario(dateStr = isoDate()) {
   const fnPdf  = `RELATORIO_DIARIO_${dateStr}.pdf`;
   const fnXlsx = `RELATORIO_DIARIO_${dateStr}.xlsx`;
   const res = await writeRedundant("RELATORIOS", fnPdf, (p) => gerarPDF(p, dateStr, dados, false));
-  await writeRedundant("RELATORIOS", fnXlsx, (p) => gerarXLSX(p, dados));
-  
+  const resXlsx = await writeRedundant("RELATORIOS", fnXlsx, (p) => gerarXLSX(p, dados));
+
   return {
     pdfPath: res.localPath || res.networkPaths[0],
+    xlsxPath: resXlsx.localPath || resXlsx.networkPaths[0] || null,
     dir: path.dirname(res.localPath || ""),
     dateStr,
     localOk: !!res.localPath,
     networkOk: res.networkPaths.length > 0,
-    errors: res.errors
+    destinos: res.destinos,
+    errors: res.errors.concat(resXlsx.errors),
   };
+
 }
 
 async function gerarRelatorioMensal(mesStr) {
@@ -346,10 +404,28 @@ async function gerarRelatorioMensal(mesStr) {
   const dados = coletarDados(mesStr + "-01"); // Aproximação
   const fnPdf = `RELATORIO_MENSAL_${mesStr}.pdf`;
   const res = await writeRedundant("RELATORIOS", fnPdf, (p) => gerarPDF(p, mesStr, dados, true));
-  return { pdfPath: res.localPath, dir: path.dirname(res.localPath || "") };
+  return {
+    pdfPath: res.localPath || res.networkPaths[0],
+    dir: path.dirname(res.localPath || ""),
+    destinos: res.destinos,
+    errors: res.errors,
+  };
+}
+
+// Diagnóstico: estado atual de cada destino (acessível? gravável? qual caminho?).
+function diagnosticarDestinos() {
+  return DESTINOS.map((d) => {
+    const item = { key: d.key, label: d.label, ok: false, caminho: null, candidatos: d.candidates, error: null };
+    try {
+      const { base, dir } = resolveBase(d, "DATABASE");
+      item.ok = true; item.caminho = base; item.pastaTestada = dir;
+    } catch (e) { item.error = e.message; }
+    return item;
+  });
 }
 
 module.exports = {
   gerarRelatorioDiario, gerarRelatorioMensal, isoDate,
-  writeRedundant, LOCAL_BASE, CATEGORIES
+  writeRedundant, diagnosticarDestinos,
+  LOCAL_BASE, CATEGORIES, DESTINOS, baseAtiva,
 };
