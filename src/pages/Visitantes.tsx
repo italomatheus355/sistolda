@@ -54,6 +54,10 @@ const LOCALIDADES = [
   "Sala do Comandante",
   "Sala do Imediato",
   "Departamento de Manutenção",
+  "Briefing",
+  "Pista",
+  "Aviônica",
+  "Oficina de Baterias",
 ] as const;
 
 const TIPO_LABEL: Record<PessoaTipo, string> = {
