@@ -1,11 +1,12 @@
-// SISTOLDA — Agendador interno (cron) com gravação redundante (rede + local).
+// SISTOLDA — Agendador interno (cron) com gravação redundante em 3 destinos
+// independentes: Servidor Local, Rede Informática e Rede SEGORG.
 const cron = require("node-cron");
 const fs = require("fs");
 const path = require("path");
 const { db } = require("../database/connection");
 const {
   gerarRelatorioDiario, gerarRelatorioMensal,
-  isoDate, writeRedundant, LOCAL_BASE,
+  isoDate, writeRedundant, diagnosticarDestinos, LOCAL_BASE,
 } = require("./relatoriosService");
 
 const SCHEDULE_DIARIO     = process.env.SISTOLDA_RELATORIO_CRON   || "0 20 * * *";
@@ -14,6 +15,7 @@ const SCHEDULE_BACKUP     = process.env.SISTOLDA_BACKUP_CRON      || "0 20 * * *
 const SCHEDULE_INTEGRITY  = process.env.SISTOLDA_INTEGRITY_CRON   || "0 3 * * *";
 const RETRY_DELAY_MIN     = Number(process.env.SISTOLDA_RETRY_MIN || 10);
 const RETRY_MAX           = Number(process.env.SISTOLDA_RETRY_MAX || 6);
+
 
 function ts() { return new Date().toISOString().replace("T", " ").slice(0, 19); }
 function log(tag, msg) { console.log(`[${tag}] ${ts()} ${msg}`); }
