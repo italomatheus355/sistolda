@@ -42,22 +42,23 @@ async function runRelatorioDiario({ dateStr = isoDate(), origin = "scheduler", a
 
   try {
     const r = await gerarRelatorioDiario(dateStr);
-    log("BACKUP", `Relatório local=${r.localOk ? "OK" : "FALHA"} rede=${r.networkOk ? "OK" : "FALHA"}`);
 
-    if (r.localOk) {
-      audit({ acao: "relatorio.local_concluido", descricao: `Backup local de relatórios concluído.` });
+    for (const d of r.destinos || []) {
+      const linha = `${d.label}: ${d.ok ? "SUCESSO" : `ERRO — ${d.error}`}`;
+      log("BACKUP", linha);
+      audit({
+        acao: d.ok ? "relatorio.destino_ok" : "relatorio.destino_erro",
+        descricao: `Relatório ${dateStr} — ${linha}`,
+      });
     }
 
-    if (r.networkOk) {
-      audit({ acao: "relatorio.rede_concluido", descricao: `Backup em rede de relatórios concluído.` });
-    } else {
-      log("BACKUP", `Backup em rede não executado (caminho indisponível).`);
-      audit({ acao: "relatorio.rede_indisponivel", descricao: `Backup em rede não executado (caminho indisponível).` });
+    if (!r.localOk && !r.networkOk) {
+      throw new Error(r.errors.join(" | ") || "nenhum destino disponível");
     }
 
     audit({
       acao: "relatorio.sucesso",
-      descricao: `Relatório diário ${dateStr} processado. PDF=${path.basename(r.pdfPath)} XLSX=${path.basename(r.xlsxPath)}.`,
+      descricao: `Relatório diário ${dateStr} processado. PDF=${r.pdfPath ? path.basename(r.pdfPath) : "—"} XLSX=${r.xlsxPath ? path.basename(r.xlsxPath) : "—"}.`,
     });
     return { ok: true, ...r };
   } catch (e) {
@@ -66,6 +67,7 @@ async function runRelatorioDiario({ dateStr = isoDate(), origin = "scheduler", a
     audit({ acao: "relatorio.erro", descricao: msg });
     return scheduleRetry(dateStr, attempt, msg);
   }
+
 }
 
 function scheduleRetry(dateStr, attempt, motivo) {
