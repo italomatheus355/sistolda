@@ -182,13 +182,18 @@ function integrityCheck() {
 function startScheduler() {
   const TZ = process.env.TZ || "America/Sao_Paulo";
   log("SCHEDULER", `Diretório local: ${LOCAL_BASE}`);
+  for (const d of diagnosticarDestinos()) {
+    log("SCHEDULER", `Destino ${d.label}: ${d.ok ? `OK (${d.caminho})` : `INDISPONÍVEL — ${d.error}`}`);
+  }
 
+  // Diário 20:00 — banco + logs + relatório, com resultado por destino.
   if (cron.validate(SCHEDULE_DIARIO)) {
     cron.schedule(SCHEDULE_DIARIO, () => {
-      runRelatorioDiario({ origin: "cron-diario" }).catch(() => {});
+      runBackupCompleto({ origin: "cron-diario" }).catch(() => {});
     }, { timezone: TZ });
   }
 
+  // Mensal — dia 01 às 20:00 (não substitui o diário).
   if (cron.validate(SCHEDULE_MENSAL)) {
     cron.schedule(SCHEDULE_MENSAL, async () => {
       const mes = new Date().toISOString().slice(0, 7);
@@ -196,7 +201,7 @@ function startScheduler() {
       audit({ acao: "relatorio_mensal.inicio", descricao: `Iniciando ${mes}` });
       try {
         const r = await gerarRelatorioMensal(mes);
-        log("BACKUP-MENSAL", `Concluído: ${r.pdfPath}`);
+        reportarDestinos("BACKUP-MENSAL", `Relatório mensal ${mes}`, r.destinos);
         audit({ acao: "relatorio_mensal.sucesso", descricao: `Mensal ${mes} em ${r.dir}` });
       } catch (e) {
         err("BACKUP-MENSAL", e.message);
@@ -205,8 +210,12 @@ function startScheduler() {
     }, { timezone: TZ });
   }
 
-  if (cron.validate(SCHEDULE_BACKUP)) {
-    cron.schedule(SCHEDULE_BACKUP, () => { backupDatabase(); backupLogs(); }, { timezone: TZ });
+  // Cron extra de backup (só quando configurado em horário diferente do diário).
+  if (SCHEDULE_BACKUP !== SCHEDULE_DIARIO && cron.validate(SCHEDULE_BACKUP)) {
+    cron.schedule(SCHEDULE_BACKUP, () => {
+      backupDatabase().catch(() => {});
+      backupLogs().catch(() => {});
+    }, { timezone: TZ });
   }
 
   if (cron.validate(SCHEDULE_INTEGRITY)) {
@@ -216,4 +225,8 @@ function startScheduler() {
   log("SCHEDULER", `Diário="${SCHEDULE_DIARIO}" Mensal="${SCHEDULE_MENSAL}" Backup="${SCHEDULE_BACKUP}" Integridade="${SCHEDULE_INTEGRITY}" TZ=${TZ}`);
 }
 
-module.exports = { startScheduler, runRelatorioDiario, backupDatabase, backupLogs };
+module.exports = {
+  startScheduler, runRelatorioDiario, runBackupCompleto,
+  backupDatabase, backupLogs, diagnosticarDestinos,
+};
+
