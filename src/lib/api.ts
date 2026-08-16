@@ -391,6 +391,12 @@ export const api = {
 
   // ===== Backups (somente leitura) =====
   listBackups: () => request<ApiBackupsResponse>("/backups"),
+  diagnosticoBackups: () =>
+    request<{ destinos: ApiBackupDestino[] }>("/backups/diagnostico"),
+  executarBackupAgora: () =>
+    request<{ ok: boolean; destinos: ApiBackupDestino[]; dateStr: string }>(
+      "/backups/executar", { method: "POST" }),
+
   fetchBackupBlob: async (caminho: string, inline = false): Promise<Blob> => {
     const token = getAuthToken();
     const qs = new URLSearchParams({ path: caminho });
