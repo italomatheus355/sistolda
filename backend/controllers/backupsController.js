@@ -37,21 +37,46 @@ function listarPasta(baseKey, baseLabel, base, categoria) {
   return out;
 }
 
+function basesAtuais() {
+  return DESTINOS.map((d) => ({ key: d.key, label: d.label, base: baseAtiva(d) }));
+}
+
 exports.list = (req, res, next) => {
   try {
+    const bases = basesAtuais();
     const arquivos = [];
-    for (const b of BASES) {
+    for (const b of bases) {
       if (!b.base) continue;
       for (const c of CATEGORIES) arquivos.push(...listarPasta(b.key, b.label, b.base, c));
     }
     arquivos.sort((a, b) => (a.modificado_em < b.modificado_em ? 1 : -1));
     res.json({
-      bases: BASES.map((b) => ({ key: b.key, label: b.label, caminho: b.base })),
+      bases: bases.map((b) => ({ key: b.key, label: b.label, caminho: b.base })),
       categorias: CATEGORIES,
       arquivos,
     });
   } catch (e) { next(e); }
 };
+
+// Diagnóstico: cada destino está acessível e gravável?
+exports.diagnostico = (req, res, next) => {
+  try {
+    res.json({ destinos: diagnosticarDestinos() });
+  } catch (e) { next(e); }
+};
+
+// Teste manual da rotina completa (banco + logs + relatório) nos 3 destinos.
+exports.executar = async (req, res, next) => {
+  try {
+    logAuditoria(req, {
+      modulo: "relatorios", acao: "backup_manual",
+      descricao: "Execução manual da rotina de backup nos três destinos.",
+    });
+    const r = await runBackupCompleto({ origin: "manual" });
+    res.json(r);
+  } catch (e) { next(e); }
+};
+
 
 // Serve o arquivo original (inline para visualizar, attachment para baixar).
 exports.download = (req, res, next) => {
