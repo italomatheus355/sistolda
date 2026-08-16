@@ -435,6 +435,15 @@ export interface ApiBackupsResponse {
   arquivos: ApiBackupArquivo[];
 }
 
+export interface ApiBackupDestino {
+  key: string;
+  label: string;
+  ok: boolean;
+  caminho?: string | null;
+  error?: string | null;
+}
+
+
 
 
 export interface ApiChaveAutorizacao {
