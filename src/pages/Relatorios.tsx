@@ -62,6 +62,24 @@ export default function Relatorios() {
     },
   });
 
+  const executarBackup = useMutation({
+    mutationFn: api.executarBackupAgora,
+    onSuccess: (r) => {
+      setResultadoBackup(r.destinos || []);
+      toast({
+        title: r.ok ? "Backup executado" : "Backup falhou",
+        description: (r.destinos || [])
+          .map(d => `${d.label}: ${d.ok ? "SUCESSO" : "ERRO"}`).join(" · "),
+        variant: r.ok ? undefined : "destructive",
+      });
+    },
+    onError: (e: Error) => {
+      setResultadoBackup([]);
+      toast({ title: "Falha no backup manual", description: e.message, variant: "destructive" });
+    },
+  });
+
+
   const downloadBackup = async (arquivo: ApiBackupArquivo) => {
     try {
       toast({ title: "Iniciando download", description: arquivo.nome });
