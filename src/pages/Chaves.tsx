@@ -405,7 +405,7 @@ const Chaves = () => {
                   <span className="text-foreground">
                     Nº {String(c.numero).padStart(2, "0")} — {c.nome}
                   </span>
-                  {c.categoria === "secreta" && (
+                  {c.categoria === "SECRETA" && (
                     <span className="text-status-borrowed tracking-wider">SECRETA</span>
                   )}
                 </div>
