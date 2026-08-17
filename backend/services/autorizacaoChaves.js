@@ -320,11 +320,21 @@ function baterEntrada(row, pessoa) {
  */
 function verificarAutorizacao(chave, pessoa, ctx = {}) {
   const numero = Number(chave?.numero);
+  
+  // Regra OSTENSIVA Dinâmica:
+  // Buscamos a categoria atual da chave no banco para garantir que a regra dinâmica
+  // prevaleça sobre a matriz se a chave for OSTENSIVA.
+  const chaveDb = db.prepare("SELECT categoria FROM chaves WHERE numero = ?").get(numero);
+  if (chaveDb && chaveDb.categoria === 'OSTENSIVA') {
+    return { autorizado: true, motivo: "ostensivo", regra: "ostensivo" };
+  }
+
   const regra = regraDaChave(numero);
   // Chave sem regra cadastrada → mantém comportamento atual (não bloqueia).
   if (!regra) return { autorizado: true, motivo: "sem_regra", regra: "sem_regra" };
 
   if (regra === "ostensivo") return { autorizado: true, motivo: "ostensivo", regra };
+
 
   const posto = normPosto(pessoa.posto);
   const emServico =
