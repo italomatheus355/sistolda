@@ -1,6 +1,6 @@
 import { KeyRound, Plus, Trash2, Search, ShieldCheck, Pencil, Download, FileText } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, ApiChaveMatriz, ApiChaveAutorizacao, ApiPessoa, SYNC_OPTIONS } from "@/lib/api";
+import { api, ApiChave, ApiChaveMatriz, ApiChaveAutorizacao, ApiPessoa, SYNC_OPTIONS } from "@/lib/api";
 import { OperationalDateBanner } from "@/components/OperationalDateBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

@@ -223,7 +223,7 @@ const Chaves = () => {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
               {filtered.map((chave) => {
-                const isSecreta = chave.categoria === "secreta";
+                const isSecreta = chave.categoria === "SECRETA";
                 const isSelected = selectedIds.includes(chave.id);
                 return (
                   <button
