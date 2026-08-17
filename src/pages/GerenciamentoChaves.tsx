@@ -1,6 +1,6 @@
 import { KeyRound, Plus, Trash2, Search, ShieldCheck, Pencil, Download, FileText } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, ApiChaveMatriz, ApiChaveAutorizacao, ApiPessoa, SYNC_OPTIONS } from "@/lib/api";
+import { api, ApiChave, ApiChaveMatriz, ApiChaveAutorizacao, ApiPessoa, SYNC_OPTIONS } from "@/lib/api";
 import { OperationalDateBanner } from "@/components/OperationalDateBanner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,9 +31,10 @@ export default function GerenciamentoChaves() {
   const [pessoaSel, setPessoaSel] = useState<ApiPessoa | null>(null);
   const [confirmDel, setConfirmDel] = useState<{ aut: ApiChaveAutorizacao; chave: ApiChaveMatriz } | null>(null);
   const [editFor, setEditFor] = useState<ApiChaveMatriz | null>(null);
-  const [editForm, setEditForm] = useState<{ numero: string; nome: string; categoria: "secreta" | "geral" }>({
-    numero: "", nome: "", categoria: "geral",
+  const [editForm, setEditForm] = useState<{ numero: string; nome: string; categoria: ApiChave["categoria"] }>({
+    numero: "", nome: "", categoria: "GERAL",
   });
+
 
 
   const { data: matriz = [], isLoading } = useQuery({
@@ -155,9 +156,13 @@ export default function GerenciamentoChaves() {
                 <p className="text-sm font-medium mt-1">{c.nome}</p>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                <Badge variant={c.categoria === "secreta" ? "destructive" : "secondary"} className="uppercase text-[10px]">
+                <Badge 
+                  variant={editForm.categoria === "SECRETA" ? "destructive" : editForm.categoria === "RESERVADA" ? "default" : "secondary"} 
+                  className="uppercase text-[10px]"
+                >
                   {c.categoria}
                 </Badge>
+
                 <button
                   onClick={() => abrirEdicao(c)}
                   className="text-muted-foreground hover:text-primary p-1 rounded"
@@ -287,14 +292,18 @@ export default function GerenciamentoChaves() {
               <Label className="text-xs font-mono text-muted-foreground mb-1.5 block">CATEGORIA</Label>
               <Select
                 value={editForm.categoria}
-                onValueChange={(v) => setEditForm((f) => ({ ...f, categoria: v as "secreta" | "geral" }))}
+                onValueChange={(v) => setEditForm((f) => ({ ...f, categoria: v as ApiChave["categoria"] }))}
               >
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="geral">GERAL</SelectItem>
-                  <SelectItem value="secreta">SECRETA</SelectItem>
+                  <SelectItem value="GERAL">GERAL</SelectItem>
+                  <SelectItem value="OSTENSIVA">OSTENSIVA</SelectItem>
+                  <SelectItem value="RESTRITA">RESTRITA</SelectItem>
+                  <SelectItem value="RESERVADA">RESERVADA</SelectItem>
+                  <SelectItem value="SECRETA">SECRETA</SelectItem>
                 </SelectContent>
               </Select>
+
             </div>
           </div>
           <DialogFooter>

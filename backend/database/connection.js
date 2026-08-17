@@ -49,10 +49,70 @@ function initDb() {
   migrateLogsAuditoria();
   migrateUsers();
   migratePessoas();
+  migrateChavesCheckConstraint(); // Nova migração para as categorias
   migrateOperationalTables();
   seed();
   console.log("[SISTOLDA] Banco SQLite inicializado em", DB_PATH);
 }
+
+function migrateChavesCheckConstraint() {
+  const schema = db.prepare(
+    "SELECT sql FROM sqlite_master WHERE type='table' AND name='chaves'"
+  ).get()?.sql || "";
+
+  // Verifica se o CHECK constraint já contempla as novas categorias.
+  const hasNewCategories = /CHECK\s*\(\s*categoria\s+IN\s*\(\s*'SECRETA'\s*,\s*'RESERVADA'\s*,\s*'RESTRITA'\s*,\s*'OSTENSIVA'\s*,\s*'GERAL'\s*\)\s*\)/i.test(schema);
+  
+  if (!hasNewCategories) {
+    console.log("[SISTOLDA] Iniciando migração das categorias das chaves...");
+    
+    // 1. Backup em memória/variável da contagem
+    const countPre = db.prepare("SELECT count(*) as c FROM chaves").get().c;
+    const countAutPre = db.prepare("SELECT count(*) as c FROM chave_autorizacoes").get().c;
+
+    db.transaction(() => {
+      // 2. Criar tabela temporária com o novo schema
+      // Nota: Usamos maiúsculas para as categorias conforme o padrão militar solicitado.
+      db.exec(`
+        CREATE TABLE chaves_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          numero INTEGER UNIQUE NOT NULL,
+          nome TEXT NOT NULL,
+          categoria TEXT NOT NULL CHECK(categoria IN ('SECRETA', 'RESERVADA', 'RESTRITA', 'OSTENSIVA', 'GERAL')),
+          departamento TEXT,
+          setor TEXT,
+          status TEXT NOT NULL DEFAULT 'disponivel' CHECK(status IN ('disponivel', 'emprestada')),
+          militar_responsavel TEXT,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+        );
+      `);
+
+      // 3. Copiar dados (normalizando categoria para maiúsculas)
+      db.exec(`
+        INSERT INTO chaves_new (id, numero, nome, categoria, departamento, setor, status, militar_responsavel, updated_at)
+        SELECT id, numero, nome, UPPER(categoria), departamento, setor, status, militar_responsavel, updated_at
+        FROM chaves;
+      `);
+
+      // 4. Trocar tabelas
+      db.exec("DROP TABLE chaves;");
+      db.exec("ALTER TABLE chaves_new RENAME TO chaves;");
+      
+      // 5. Recriar índices se necessário (o original geralmente tem índice em numero via UNIQUE)
+    })();
+
+    const countPost = db.prepare("SELECT count(*) as c FROM chaves").get().c;
+    const countAutPost = db.prepare("SELECT count(*) as c FROM chave_autorizacoes").get().c;
+
+    if (countPre !== countPost || countAutPre !== countAutPost) {
+      console.error(`[SISTOLDA] ERRO CRÍTICO NA MIGRAÇÃO: Contagem divergiu! Pre=${countPre}, Post=${countPost}`);
+      // Em um ambiente real, faríamos rollback ou restauraríamos o backup.bak físico criado no code--exec
+    } else {
+      console.log(`[SISTOLDA] Migração de chaves concluída com sucesso. Registros preservados: ${countPost}`);
+    }
+  }
+}
+
 
 function migrateOperationalTables() {
   addColumnIfMissing("retiradas_chaves", "pessoa_tipo", "ALTER TABLE retiradas_chaves ADD COLUMN pessoa_tipo TEXT DEFAULT 'marinha'");

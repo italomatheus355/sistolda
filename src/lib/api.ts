@@ -53,7 +53,8 @@ export interface ApiChave {
   id: number;
   numero: number;
   nome: string;
-  categoria: "secreta" | "geral";
+  categoria: "SECRETA" | "RESERVADA" | "RESTRITA" | "OSTENSIVA" | "GERAL";
+
   departamento: "administracao" | "manutencao" | "operacoes" | "seguranca";
   setor: string;
   status: "disponivel" | "emprestada";
@@ -374,7 +375,7 @@ export const api = {
   // ===== Configuração da própria chave (número, nome/local, categoria) =====
   updateChaveConfig: (
     numeroAtual: number,
-    body: { numero: number; nome: string; categoria: "secreta" | "geral" },
+    body: { numero: number; nome: string; categoria: ApiChave["categoria"] },
   ) =>
     request<{ ok: true }>(`/chaves-config/${numeroAtual}`, {
       method: "PUT",
@@ -456,7 +457,7 @@ export interface ApiChaveAutorizacao {
 export interface ApiChaveMatriz {
   numero: number;
   nome: string;
-  categoria: "secreta" | "geral";
+  categoria: ApiChave["categoria"];
   departamento: string;
   regra: string;
   regra_label: string;
