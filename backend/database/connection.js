@@ -266,7 +266,7 @@ function seed() {
     const insert = db.prepare("INSERT INTO chaves (numero, nome, categoria, departamento, setor) VALUES (?,?,?,?,?)");
     const tx = db.transaction(() => {
       let n = 1;
-      for (const [nome, categoria, dep] of CHAVES_ORDENADAS) insert.run(n++, nome, categoria, dep, nome);
+      for (const [nome, categoria, dep] of CHAVES_ORDENADAS) insert.run(n++, nome, String(categoria).toUpperCase(), dep, nome);
     });
     tx();
   }

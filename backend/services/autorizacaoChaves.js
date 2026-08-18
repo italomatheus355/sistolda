@@ -430,9 +430,9 @@ function atualizarChave(numeroAtual, { numero, nome, categoria }) {
   }
   const novoNome = String(nome || "").trim();
   if (!novoNome) throw Object.assign(new Error("Informe o nome/local da chave."), { status: 400 });
-  const cat = String(categoria || "").trim().toLowerCase();
-  if (!["secreta", "geral"].includes(cat)) {
-    throw Object.assign(new Error("Categoria inválida (use SECRETA ou GERAL)."), { status: 400 });
+  const cat = String(categoria || "").trim().toUpperCase();
+  if (!["SECRETA", "RESERVADA", "RESTRITA", "OSTENSIVA", "GERAL"].includes(cat)) {
+    throw Object.assign(new Error("Categoria inválida (use SECRETA, RESERVADA, RESTRITA, OSTENSIVA ou GERAL)."), { status: 400 });
   }
   if (novoNumero !== atual) {
     const dup = db.prepare("SELECT id FROM chaves WHERE numero = ?").get(novoNumero);
