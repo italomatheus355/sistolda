@@ -458,7 +458,7 @@ function diagnosticarDestinos() {
 }
 
 module.exports = {
-  gerarRelatorioDiario, gerarRelatorioMensal, isoDate,
+  gerarRelatorioDiario, gerarRelatorioMensal, isoDate, brDateTime, gerarPDF,
   writeRedundant, diagnosticarDestinos,
   LOCAL_BASE, CATEGORIES, DESTINOS, baseAtiva,
 };
