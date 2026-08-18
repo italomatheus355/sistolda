@@ -353,16 +353,21 @@ function gerarPDF(filePath, dateStr, dados, isMensal = false) {
       [160, 120, 60, 90, 85]
     );
 
-    // Rodapé
+    // Rodapé (sem margem inferior para não criar páginas extras)
     const pages = doc.bufferedPageRange();
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i);
+      doc.page.margins.bottom = 0;
+      const baseY = doc.page.height - 45;
       doc.fontSize(8).font("Helvetica").text(
         "SISTOLDA — Documento gerado automaticamente",
-        40, 800, { align: "center", width: 515 }
+        MARGIN, baseY, { align: "center", width: CONTENT_W, lineBreak: false }
       );
-      doc.text(`Página ${i + 1} de ${pages.count}`, 40, 810, { align: "center", width: 515 });
+      doc.text(`Página ${i + 1} de ${pages.count}`, MARGIN, baseY + 11, {
+        align: "center", width: CONTENT_W, lineBreak: false,
+      });
     }
+
 
     doc.end();
     stream.on("finish", resolve);
