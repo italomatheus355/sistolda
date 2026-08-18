@@ -62,7 +62,6 @@ function migrateChavesCheckConstraint() {
 
   if (!schema) return;
 
-  // Verifica se o CHECK constraint já contempla as novas categorias.
   const hasNewCategories = /categoria\s+IN\s*\(\s*'SECRETA'\s*,\s*'RESERVADA'\s*,\s*'RESTRITA'\s*,\s*'OSTENSIVA'\s*,\s*'GERAL'\s*\)/i.test(schema);
   if (hasNewCategories) return;
 
@@ -71,12 +70,11 @@ function migrateChavesCheckConstraint() {
   const countPre = db.prepare("SELECT count(*) as c FROM chaves").get().c;
   const countAutPre = db.prepare("SELECT count(*) as c FROM chave_autorizacoes").get().c;
 
-  // Colunas REAIS existentes na tabela atual — nada é adicionado ou removido.
+  // Colunas reais existentes na tabela atual — nada é adicionado ou removido.
   const cols = db.prepare("PRAGMA table_info(chaves)").all().map((c) => c.name);
   const colList = cols.map((c) => `"${c}"`).join(", ");
   const selectList = cols.map((c) => (c === "categoria" ? "UPPER(categoria)" : `"${c}"`)).join(", ");
 
-  // Reaproveita o DDL original, trocando apenas o CHECK da coluna categoria.
   let newDdl = schema
     .replace(/CREATE\s+TABLE\s+(IF\s+NOT\s+EXISTS\s+)?["'`\[]?chaves["'`\]]?/i, "CREATE TABLE chaves_new")
     .replace(
@@ -89,24 +87,46 @@ function migrateChavesCheckConstraint() {
     return;
   }
 
-  db.transaction(() => {
-    db.exec(newDdl);
-    db.exec(`INSERT INTO chaves_new (${colList}) SELECT ${selectList} FROM chaves;`);
-    db.exec("DROP TABLE chaves;");
-    db.exec("ALTER TABLE chaves_new RENAME TO chaves;");
-  })();
+  // SQLite não permite DROP da tabela pai enquanto as FKs estão ativas.
+  // A desativação é somente durante esta reconstrução; a integridade é
+  // validada antes/depois e as FKs são religadas no final.
+  const fkViolationsBefore = db.pragma("foreign_key_check");
+  if (fkViolationsBefore.length > 0) {
+    throw new Error(
+      `[SISTOLDA] Migração abortada: banco já possui ${fkViolationsBefore.length} violação(ões) de chave estrangeira.`
+    );
+  }
+
+  db.pragma("foreign_keys = OFF");
+  try {
+    db.transaction(() => {
+      db.exec(newDdl);
+      db.exec(`INSERT INTO chaves_new (${colList}) SELECT ${selectList} FROM chaves;`);
+      db.exec("DROP TABLE chaves;");
+      db.exec("ALTER TABLE chaves_new RENAME TO chaves;");
+    })();
+  } finally {
+    db.pragma("foreign_keys = ON");
+  }
+
+  const fkViolationsAfter = db.pragma("foreign_key_check");
+  if (fkViolationsAfter.length > 0) {
+    throw new Error(
+      `[SISTOLDA] Migração concluída com ${fkViolationsAfter.length} violação(ões) de chave estrangeira. Inicialização interrompida para proteger os dados.`
+    );
+  }
 
   const countPost = db.prepare("SELECT count(*) as c FROM chaves").get().c;
   const countAutPost = db.prepare("SELECT count(*) as c FROM chave_autorizacoes").get().c;
 
   if (countPre !== countPost || countAutPre !== countAutPost) {
-    console.error(`[SISTOLDA] ERRO CRÍTICO NA MIGRAÇÃO: Contagem divergiu! Chaves ${countPre}->${countPost}, Autorizações ${countAutPre}->${countAutPost}`);
-  } else {
-    console.log(`[SISTOLDA] Migração de chaves concluída. Chaves preservadas: ${countPost}, autorizações: ${countAutPost}`);
+    throw new Error(
+      `[SISTOLDA] ERRO CRÍTICO NA MIGRAÇÃO: Contagem divergiu! Chaves ${countPre}->${countPost}, Autorizações ${countAutPre}->${countAutPost}`
+    );
   }
+
+  console.log(`[SISTOLDA] Migração de chaves concluída. Chaves preservadas: ${countPost}, autorizações: ${countAutPost}`);
 }
-
-
 
 function migrateOperationalTables() {
   addColumnIfMissing("retiradas_chaves", "pessoa_tipo", "ALTER TABLE retiradas_chaves ADD COLUMN pessoa_tipo TEXT DEFAULT 'marinha'");
