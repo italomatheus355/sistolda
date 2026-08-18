@@ -220,74 +220,78 @@ function coletarDados(dateStr) {
 // ---------- PDF Modelo Novo ----------
 function gerarPDF(filePath, dateStr, dados, isMensal = false) {
   return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", margin: 40 });
+    const MARGIN = 40;
+    const RIGHT = 555;
+    const CONTENT_W = RIGHT - MARGIN;
+    const doc = new PDFDocument({ size: "A4", margin: MARGIN, bufferPages: true });
     const stream = fs.createWriteStream(filePath);
     doc.pipe(stream);
 
-    // Cabeçalho institucional
-    const logoPath = path.join(__dirname, "..", "assets", "logo-sistolda.png");
-    if (fs.existsSync(logoPath)) {
-      doc.image(logoPath, { fit: [60, 60], align: 'center' });
-      doc.moveDown(0.5);
-    }
-
-    doc.font("Helvetica-Bold").fontSize(12).text("MARINHA DO BRASIL", { align: "center" });
-    doc.text("COMANDO DO 4º DISTRITO NAVAL", { align: "center" });
-    doc.text("1º ESQUADRÃO DE HELICÓPTEROS DE EMPREGO GERAL DO NORTE", { align: "center" });
+    // Cabeçalho institucional (sem logo — apenas textos)
+    doc.font("Helvetica-Bold").fontSize(12).text("MARINHA DO BRASIL", MARGIN, doc.y, { align: "center", width: CONTENT_W });
+    doc.text("COMANDO DO 4º DISTRITO NAVAL", MARGIN, doc.y, { align: "center", width: CONTENT_W });
+    doc.text("1º ESQUADRÃO DE HELICÓPTEROS DE EMPREGO GERAL DO NORTE", MARGIN, doc.y, { align: "center", width: CONTENT_W });
     doc.moveDown(0.5);
-    doc.fontSize(14).text("RELATÓRIO OPERACIONAL", { align: "center" });
+    doc.fontSize(14).text("RELATÓRIO OPERACIONAL", MARGIN, doc.y, { align: "center", width: CONTENT_W });
     doc.moveDown(0.2);
     const ref = isMensal ? dateStr : dateStr.split("-").reverse().join("/");
-    doc.fontSize(10).font("Helvetica").text(`Referência: ${ref}`, { align: "center" });
+    doc.fontSize(10).font("Helvetica").text(`Referência: ${ref}`, MARGIN, doc.y, { align: "center", width: CONTENT_W });
     doc.moveDown(1);
 
+    // Todas as seções sempre na mesma margem esquerda (x = MARGIN).
     const drawSection = (title) => {
-      doc.moveDown(1);
-      doc.font("Helvetica-Bold").fontSize(11).text(title.toUpperCase());
-      doc.moveTo(40, doc.y).lineTo(555, doc.y).stroke();
-      doc.moveDown(0.5);
+      let y = doc.y + 12;
+      if (y > 720) { doc.addPage(); y = MARGIN + 10; }
+      doc.font("Helvetica-Bold").fontSize(11).text(title.toUpperCase(), MARGIN, y, {
+        width: CONTENT_W, align: "left", lineBreak: false,
+      });
+      y += 15;
+      doc.moveTo(MARGIN, y).lineTo(RIGHT, y).stroke();
+      doc.x = MARGIN;
+      doc.y = y + 8;
     };
 
     const drawTable = (headers, rows, widths) => {
-      const startX = 40;
       let y = doc.y;
 
-      // Header em negrito
-      doc.font("Helvetica-Bold").fontSize(8);
-      let x = startX;
-      headers.forEach((h, i) => {
-        doc.text(h.toUpperCase(), x + 2, y, { width: widths[i] - 4 });
-        x += widths[i];
-      });
-      doc.moveTo(40, y + 10).lineTo(555, y + 10).stroke();
-      y += 15;
+      const drawHeader = () => {
+        doc.font("Helvetica-Bold").fontSize(8);
+        let x = MARGIN;
+        headers.forEach((h, i) => {
+          doc.text(h.toUpperCase(), x + 2, y, { width: widths[i] - 4, lineBreak: false });
+          x += widths[i];
+        });
+        doc.moveTo(MARGIN, y + 10).lineTo(RIGHT, y + 10).stroke();
+        y += 15;
+        doc.font("Helvetica").fontSize(7.5);
+      };
 
-      // Dados normais
-      doc.font("Helvetica").fontSize(7.5);
+      drawHeader();
+
+      if (rows.length === 0) {
+        doc.font("Helvetica-Oblique").fontSize(7.5)
+          .text("Sem registros no período.", MARGIN + 2, y, { width: CONTENT_W - 4, lineBreak: false });
+        y += 12;
+      }
+
       rows.forEach((row) => {
-        if (y > 750) { 
-          doc.addPage(); 
-          y = 50; 
-          // Re-draw headers on new page
-          doc.font("Helvetica-Bold").fontSize(8);
-          let rx = startX;
-          headers.forEach((h, i) => {
-            doc.text(h.toUpperCase(), rx + 2, y, { width: widths[i] - 4 });
-            rx += widths[i];
-          });
-          doc.moveTo(40, y + 10).lineTo(555, y + 10).stroke();
-          y += 15;
-          doc.font("Helvetica").fontSize(7.5);
+        if (y > 750) {
+          doc.addPage();
+          y = MARGIN + 10;
+          drawHeader();
         }
-        x = startX;
+        let x = MARGIN;
         row.forEach((cell, i) => {
           doc.text(String(cell ?? ""), x + 2, y, { width: widths[i] - 4, lineBreak: false });
           x += widths[i];
         });
         y += 12;
       });
+
+      doc.x = MARGIN;
       doc.y = y;
     };
+
 
     // 1. CHAVES
     drawSection("1. CHAVES");
