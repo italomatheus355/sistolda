@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS chaves (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   numero INTEGER UNIQUE NOT NULL,
   nome TEXT NOT NULL,
-  categoria TEXT NOT NULL CHECK (categoria IN ('secreta','geral')),
+  categoria TEXT NOT NULL CHECK (categoria IN ('SECRETA','RESERVADA','RESTRITA','OSTENSIVA','GERAL')),
   departamento TEXT NOT NULL CHECK (departamento IN ('administracao','manutencao','operacoes','seguranca')),
   setor TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'disponivel' CHECK (status IN ('disponivel','emprestada')),
@@ -182,9 +182,6 @@ CREATE TABLE IF NOT EXISTS pessoas (
   created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_pessoas_ident ON pessoas(identificador);
-
-
-
 
 -- Controle de autorização de retirada de chaves
 CREATE TABLE IF NOT EXISTS chave_regras (
