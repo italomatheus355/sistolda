@@ -60,58 +60,52 @@ function migrateChavesCheckConstraint() {
     "SELECT sql FROM sqlite_master WHERE type='table' AND name='chaves'"
   ).get()?.sql || "";
 
+  if (!schema) return;
+
   // Verifica se o CHECK constraint já contempla as novas categorias.
-  const hasNewCategories = /CHECK\s*\(\s*categoria\s+IN\s*\(\s*'SECRETA'\s*,\s*'RESERVADA'\s*,\s*'RESTRITA'\s*,\s*'OSTENSIVA'\s*,\s*'GERAL'\s*\)\s*\)/i.test(schema);
-  
-  if (!hasNewCategories) {
-    console.log("[SISTOLDA] Iniciando migração das categorias das chaves...");
-    
-    // 1. Backup em memória/variável da contagem
-    const countPre = db.prepare("SELECT count(*) as c FROM chaves").get().c;
-    const countAutPre = db.prepare("SELECT count(*) as c FROM chave_autorizacoes").get().c;
+  const hasNewCategories = /categoria\s+IN\s*\(\s*'SECRETA'\s*,\s*'RESERVADA'\s*,\s*'RESTRITA'\s*,\s*'OSTENSIVA'\s*,\s*'GERAL'\s*\)/i.test(schema);
+  if (hasNewCategories) return;
 
-    db.transaction(() => {
-      // 2. Criar tabela temporária com o novo schema
-      // Nota: Usamos maiúsculas para as categorias conforme o padrão militar solicitado.
-      db.exec(`
-        CREATE TABLE chaves_new (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          numero INTEGER UNIQUE NOT NULL,
-          nome TEXT NOT NULL,
-          categoria TEXT NOT NULL CHECK(categoria IN ('SECRETA', 'RESERVADA', 'RESTRITA', 'OSTENSIVA', 'GERAL')),
-          departamento TEXT,
-          setor TEXT,
-          status TEXT NOT NULL DEFAULT 'disponivel' CHECK(status IN ('disponivel', 'emprestada')),
-          militar_responsavel TEXT,
-          updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
-        );
-      `);
+  console.log("[SISTOLDA] Iniciando migração das categorias das chaves...");
 
-      // 3. Copiar dados (normalizando categoria para maiúsculas)
-      db.exec(`
-        INSERT INTO chaves_new (id, numero, nome, categoria, departamento, setor, status, militar_responsavel, updated_at)
-        SELECT id, numero, nome, UPPER(categoria), departamento, setor, status, militar_responsavel, updated_at
-        FROM chaves;
-      `);
+  const countPre = db.prepare("SELECT count(*) as c FROM chaves").get().c;
+  const countAutPre = db.prepare("SELECT count(*) as c FROM chave_autorizacoes").get().c;
 
-      // 4. Trocar tabelas
-      db.exec("DROP TABLE chaves;");
-      db.exec("ALTER TABLE chaves_new RENAME TO chaves;");
-      
-      // 5. Recriar índices se necessário (o original geralmente tem índice em numero via UNIQUE)
-    })();
+  // Colunas REAIS existentes na tabela atual — nada é adicionado ou removido.
+  const cols = db.prepare("PRAGMA table_info(chaves)").all().map((c) => c.name);
+  const colList = cols.map((c) => `"${c}"`).join(", ");
+  const selectList = cols.map((c) => (c === "categoria" ? "UPPER(categoria)" : `"${c}"`)).join(", ");
 
-    const countPost = db.prepare("SELECT count(*) as c FROM chaves").get().c;
-    const countAutPost = db.prepare("SELECT count(*) as c FROM chave_autorizacoes").get().c;
+  // Reaproveita o DDL original, trocando apenas o CHECK da coluna categoria.
+  let newDdl = schema
+    .replace(/CREATE\s+TABLE\s+(IF\s+NOT\s+EXISTS\s+)?["'`\[]?chaves["'`\]]?/i, "CREATE TABLE chaves_new")
+    .replace(
+      /CHECK\s*\(\s*categoria\s+IN\s*\([^)]*\)\s*\)/i,
+      "CHECK (categoria IN ('SECRETA','RESERVADA','RESTRITA','OSTENSIVA','GERAL'))"
+    );
 
-    if (countPre !== countPost || countAutPre !== countAutPost) {
-      console.error(`[SISTOLDA] ERRO CRÍTICO NA MIGRAÇÃO: Contagem divergiu! Pre=${countPre}, Post=${countPost}`);
-      // Em um ambiente real, faríamos rollback ou restauraríamos o backup.bak físico criado no code--exec
-    } else {
-      console.log(`[SISTOLDA] Migração de chaves concluída com sucesso. Registros preservados: ${countPost}`);
-    }
+  if (!/OSTENSIVA/i.test(newDdl)) {
+    console.error("[SISTOLDA] Não foi possível localizar o CHECK de categoria no schema atual. Migração abortada.");
+    return;
+  }
+
+  db.transaction(() => {
+    db.exec(newDdl);
+    db.exec(`INSERT INTO chaves_new (${colList}) SELECT ${selectList} FROM chaves;`);
+    db.exec("DROP TABLE chaves;");
+    db.exec("ALTER TABLE chaves_new RENAME TO chaves;");
+  })();
+
+  const countPost = db.prepare("SELECT count(*) as c FROM chaves").get().c;
+  const countAutPost = db.prepare("SELECT count(*) as c FROM chave_autorizacoes").get().c;
+
+  if (countPre !== countPost || countAutPre !== countAutPost) {
+    console.error(`[SISTOLDA] ERRO CRÍTICO NA MIGRAÇÃO: Contagem divergiu! Chaves ${countPre}->${countPost}, Autorizações ${countAutPre}->${countAutPost}`);
+  } else {
+    console.log(`[SISTOLDA] Migração de chaves concluída. Chaves preservadas: ${countPost}, autorizações: ${countAutPost}`);
   }
 }
+
 
 
 function migrateOperationalTables() {
