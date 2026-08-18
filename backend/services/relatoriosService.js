@@ -47,16 +47,45 @@ const DESTINOS = [
 
 const CATEGORIES = ["DATABASE", "LOGS", "RELATORIOS"];
 
+const TZ = "America/Sao_Paulo";
+
 function pad(n) { return String(n).padStart(2, "0"); }
-function isoDate(d = new Date()) {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+// Partes de data/hora no fuso do quartel (independente do fuso do servidor).
+function partesSaoPaulo(d) {
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  });
+  const p = {};
+  for (const { type, value } of fmt.formatToParts(d)) p[type] = value;
+  if (p.hour === "24") p.hour = "00";
+  return p;
 }
+
+// Data de referência (YYYY-MM-DD) sempre no horário local de Brasília.
+function isoDate(d = new Date()) {
+  const p = partesSaoPaulo(d);
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+// Os registros são gravados pelo SQLite já em horário local
+// (datetime('now','localtime')) no formato "YYYY-MM-DD HH:MM:SS".
+// Portanto NÃO devem ser reinterpretados como UTC — isso causava o desvio de 3h.
 function brDateTime(s) {
   if (!s) return "—";
-  const d = new Date(s.includes("T") ? s : s.replace(" ", "T") + "Z");
-  if (isNaN(d.getTime())) return s;
-  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const str = String(s).trim();
+  const local = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
+  if (local && !/[zZ]$|[+-]\d{2}:?\d{2}$/.test(str)) {
+    return `${local[3]}/${local[2]}/${local[1]} ${local[4]}:${local[5]}`;
+  }
+  // Timestamps com fuso explícito (ISO/UTC): converte para Brasília.
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str;
+  const p = partesSaoPaulo(d);
+  return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
 }
+
 
 function ensureDir(p) {
   try {
